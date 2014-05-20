@@ -1,0 +1,20 @@
+<?php 
+/* @var $this EcomDev_Varnish_Block_Esi_Tag */ 
+?>
+<?php if ($this->helper('ecomdev_varnish')->isDebug()): ?>
+<!-- ESI START URL: <?php echo $this->getBlockUrl();?> -->
+<?php endif; ?>
+<!--esi
+<esi:remove>
+-->
+<div id="<?php echo $this->getHtmlId();?>"></div>
+<script type="text/javascript">
+new EcomDev.Varnish.Esi(<?php echo $this->getBlockJson();?>);
+</script>
+<!--esi
+</esi:remove>
+<esi:include src="<?php echo $this->getBlockUrl();?>" />
+-->
+<?php if ($this->helper('ecomdev_varnish')->isDebug()): ?>
+<!-- ESI END URL: <?php echo $this->getBlockUrl();?> -->
+<?php endif; ?>
