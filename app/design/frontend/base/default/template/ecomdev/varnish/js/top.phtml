@@ -1,0 +1,6 @@
+<script type="text/javascript">
+    window.currentPage = <?php 
+    echo $this->helper('core')->jsonEncode(Mage::helper('ecomdev_varnish')->getCurrentPageInfo()) 
+?>;
+    EcomDev.Varnish.AjaxBlock.url = '<?php echo $this->helper('ecomdev_varnish')->getAjaxReloadUrl();?>';
+</script>

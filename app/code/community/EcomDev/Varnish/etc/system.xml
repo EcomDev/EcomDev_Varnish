@@ -1,0 +1,105 @@
+<config>
+    <!--
+    /**
+     * Varnish extension
+     *
+     * NOTICE OF LICENSE
+     *
+     * This source file is subject to the End User License Agreement for EcomDev Premium Extensions.
+     * that is bundled with this package in the file LICENSE.txt.
+     * It is also available through the world-wide-web at this URL:
+     * http://www.ecomdev.org/license-agreement
+     *
+     * @category   EcomDev
+     * @package    EcomDev_Varnish
+     * @copyright  Copyright (c) 2013 EcomDev BV (http://www.ecomdev.org)
+     * @license    http://www.ecomdev.org/license-agreement  End User License Agreement for EcomDev Premium Extensions.
+     * @author     Ivan Chepurnyi <ivan.chepurnyi@ecomdev.org>
+     */
+    -->
+    <sections>
+        <varnish translate="label" module="ecomdev_varnish">
+            <label>Varnish Cache</label>
+            <tab>advanced</tab>
+            <sort_order>500</sort_order>
+            <show_in_default>1</show_in_default>
+            <show_in_store>1</show_in_store>
+            <show_in_website>1</show_in_website>
+            <groups>
+                <settings translate="label" module="ecomdev_varnish">
+                    <label>Settings</label>
+                    <sort_order>100</sort_order>
+                    <show_in_default>1</show_in_default>
+                    <show_in_store>1</show_in_store>
+                    <show_in_website>1</show_in_website>
+                    <fields>
+                        <active translate="label">
+                            <label>Enabled</label>
+                            <source_model>adminhtml/system_config_source_yesno</source_model>
+                            <frontend_type>select</frontend_type>
+                            <sort_order>10</sort_order>
+                            <show_in_default>1</show_in_default>
+                            <show_in_website>1</show_in_website>
+                            <comment>If you want to enable varnish only for one website, you need to enable it on global level and disable on other websites.</comment>
+                        </active>
+                        <esi_noncached translate="label comment">
+                            <label>Use ESI on All Pages</label>
+                            <source_model>adminhtml/system_config_source_yesno</source_model>
+                            <frontend_type>select</frontend_type>
+                            <sort_order>20</sort_order>
+                            <show_in_default>1</show_in_default>
+                            <comment>Will emulate ESI on non-processed ESI pages</comment>
+                        </esi_noncached>
+                        <esi_key translate="label comment">
+                            <label>ESI Signature Key</label>
+                            <frontend_type>text</frontend_type>
+                            <sort_order>20</sort_order>
+                            <show_in_default>1</show_in_default>
+                            <comment>Used to prevent non-system calls to esi controllers</comment>
+                        </esi_key>
+                        <server translate="label comment">
+                            <label>Server Address(es)</label>
+                            <frontend_type>textarea</frontend_type>
+                            <sort_order>20</sort_order>
+                            <show_in_default>1</show_in_default>
+                            <comment>127.0.0.1:6082</comment>
+                        </server>
+                        <secret translate="label">
+                            <label>Server Secret</label>
+                            <frontend_type>text</frontend_type>
+                            <sort_order>30</sort_order>
+                            <show_in_default>1</show_in_default>
+                        </secret>
+                        <debug translate="label">
+                            <label>Debug</label>
+                            <source_model>adminhtml/system_config_source_yesno</source_model>
+                            <frontend_type>select</frontend_type>
+                            <sort_order>40</sort_order>
+                            <show_in_default>1</show_in_default>
+                            <show_in_store>1</show_in_store>
+                            <show_in_website>1</show_in_website>
+                        </debug>
+                    </fields>
+                </settings>
+                <pages translate="label" module="ecomdev_varnish">
+                    <label>Page Cache Lifetimes</label>
+                    <sort_order>200</sort_order>
+                    <clone_fields>1</clone_fields>
+                    <clone_model>ecomdev_varnish/config_clone</clone_model>
+                    <show_in_default>1</show_in_default>
+                    <show_in_website>1</show_in_website>
+                    <show_in_store>1</show_in_store>
+                    <fields>
+                        <time translate="label">
+                            <label></label>
+                            <frontend_type>text</frontend_type>
+                            <show_in_default>1</show_in_default>
+                            <show_in_store>1</show_in_store>
+                            <show_in_website>1</show_in_website>
+                        </time>
+                    </fields>
+                </pages>
+            </groups>
+        </varnish>
+    </sections>
+</config>

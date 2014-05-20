@@ -1,0 +1,235 @@
+<config>
+    <!--
+    /**
+     * Varnish extension
+     *
+     * NOTICE OF LICENSE
+     *
+     * This source file is subject to the End User License Agreement for EcomDev Premium Extensions.
+     * that is bundled with this package in the file LICENSE.txt.
+     * It is also available through the world-wide-web at this URL:
+     * http://www.ecomdev.org/license-agreement
+     *
+     * @category   EcomDev
+     * @package    EcomDev_Varnish
+     * @copyright  Copyright (c) 2014 EcomDev BV (http://www.ecomdev.org)
+     * @license    http://www.ecomdev.org/license-agreement  End User License Agreement for EcomDev Premium Extensions.
+     * @author     Ivan Chepurnyi <ivan.chepurnyi@ecomdev.org>
+     */
+    -->
+    <modules>
+        <EcomDev_Varnish>
+            <version>1.0.0</version>
+        </EcomDev_Varnish>
+    </modules>
+    <global>
+        <models>
+            <ecomdev_varnish>
+                <class>EcomDev_Varnish_Model</class>
+                <resourceModel>ecomdev_varnish_resource</resourceModel>
+            </ecomdev_varnish>
+            <ecomdev_varnish_resource>
+                <class>EcomDev_Varnish_Model_Resource</class>
+            </ecomdev_varnish_resource>
+        </models>
+        <blocks>
+            <ecomdev_varnish>
+                <class>EcomDev_Varnish_Block</class>
+            </ecomdev_varnish>
+        </blocks>
+        <helpers>
+            <ecomdev_varnish>
+                <class>EcomDev_Varnish_Helper</class>
+            </ecomdev_varnish>
+        </helpers>
+        <events>
+            <controller_action_predispatch>
+                <observers>
+                    <ecomdev_varnish>
+                        <class>ecomdev_varnish/observer</class>
+                        <method>controllerActionPredispatch</method>
+                    </ecomdev_varnish>
+                </observers>
+            </controller_action_predispatch>
+            <controller_action_postdispatch>
+                <observers>
+                    <ecomdev_varnish>
+                        <class>ecomdev_varnish/observer</class>
+                        <method>controllerActionPostdispatch</method>
+                    </ecomdev_varnish>
+                </observers>
+            </controller_action_postdispatch>
+            <model_save_before>
+                <observers>
+                    <ecomdev_varnish>
+                        <class>ecomdev_varnish/observer</class>
+                        <method>modelSaveBefore</method>
+                    </ecomdev_varnish>
+                </observers>
+            </model_save_before>
+            <model_save_commit_after>
+                <observers>
+                    <ecomdev_varnish>
+                        <class>ecomdev_varnish/observer</class>
+                        <method>modelSaveCommitAfter</method>
+                    </ecomdev_varnish>
+                </observers>
+            </model_save_commit_after>
+        </events>
+    </global>
+    <varnish>
+        <pages>
+            <catalog_product_view translate="label" module="ecomdev_varnish">
+                <label>Product View Page</label>
+            </catalog_product_view>
+            <catalog_category_view translate="label" module="ecomdev_varnish">
+                <label>Category View Page</label>
+            </catalog_category_view>
+            <cms_index_index translate="label" module="ecomdev_varnish">
+                <label>Home Page</label>
+            </cms_index_index>
+            <cms_page_view translate="label" module="ecomdev_varnish">
+                <label>CMS Page</label>
+            </cms_page_view>
+            <varnish_esi_handle translate="label" module="ecomdev_varnish">
+                <label>ESI Callbacks</label>
+            </varnish_esi_handle>
+        </pages>
+        <object>
+            <collectors>
+                <product_list>ecomdev_varnish/collector_product_list</product_list>
+                <product_list_upsell>ecomdev_varnish/collector_product_list_upsell</product_list_upsell>
+                <product_list_related>ecomdev_varnish/collector_product_list_related</product_list_related>
+                <category_view>ecomdev_varnish/collector_category_view</category_view>
+                <product_view>ecomdev_varnish/collector_product_view</product_view>
+                <cms_block>ecomdev_varnish/collector_cms_block</cms_block>
+                <cms_page>ecomdev_varnish/collector_cms_page</cms_page>
+            </collectors>
+            <processors>
+                <product>ecomdev_varnish/processor_product</product>
+                <category>ecomdev_varnish/processor_category</category>
+                <cms_page>ecomdev_varnish/processor_cms_page</cms_page>
+                <cms_block>ecomdev_varnish/processor_cms_block</cms_block>
+            </processors>
+        </object>
+    </varnish>
+    <adminhtml>
+        <events>
+            <controller_action_predispatch_adminhtml_promo_catalog_applyRules>
+                <observers>
+                    <ecomdev_varnish>
+                        <class>ecomdev_varnish/catalogrule_observer</class>
+                        <method>preApply</method>
+                    </ecomdev_varnish>
+                </observers>
+            </controller_action_predispatch_adminhtml_promo_catalog_applyRules>
+            <catalogrule_after_apply>
+                <observers>
+                    <ecomdev_varnish>
+                        <class>ecomdev_varnish/catalogrule_observer</class>
+                        <method>retrieveAppliedProducts</method>
+                    </ecomdev_varnish>
+                </observers>
+            </catalogrule_after_apply>
+            <controller_action_postdispatch_adminhtml_promo_catalog_applyRules>
+                <observers>
+                    <ecomdev_varnish>
+                        <class>ecomdev_varnish/catalogrule_observer</class>
+                        <method>postApply</method>
+                    </ecomdev_varnish>
+                </observers>
+            </controller_action_postdispatch_adminhtml_promo_catalog_applyRules>
+        </events>
+    </adminhtml>
+    <frontend>
+        <routers>
+            <varnish>
+                <use>standard</use>
+                <args>
+                    <module>EcomDev_Varnish</module>
+                    <frontName>varnish</frontName>
+                </args>
+            </varnish>
+        </routers>
+        <layout>
+            <updates>
+                <ecomdev_varnish>
+                    <file>ecomdev/varnish.xml</file>
+                </ecomdev_varnish>
+            </updates>
+        </layout>
+        <events>
+            <sales_quote_save_after>
+                <observers>
+                    <ecomdev_varnish>
+                        <class>ecomdev_varnish/customer_observer</class>
+                        <method>setCardCookie</method>
+                    </ecomdev_varnish>
+                </observers>
+            </sales_quote_save_after>
+            <customer_login>
+                <observers>
+                    <ecomdev_varnish>
+                        <class>ecomdev_varnish/customer_observer</class>
+                        <method>setLoginCookie</method>
+                    </ecomdev_varnish>
+                </observers>
+            </customer_login>
+            <customer_logout>
+                <observers>
+                    <ecomdev_varnish>
+                        <class>ecomdev_varnish/customer_observer</class>
+                        <method>unsetLoginCookie</method>
+                    </ecomdev_varnish>
+                </observers>
+            </customer_logout>
+            <core_block_abstract_to_html_after>
+                <observers>
+                    <ecomdev_varnish>
+                        <class>ecomdev_varnish/observer</class>
+                        <method>coreBlockAbstractToHtmlAfter</method>
+                    </ecomdev_varnish>
+                </observers>
+            </core_block_abstract_to_html_after>
+            <controller_action_layout_load_before>
+                <observers>
+                    <ecomdev_varnish>
+                        <class>ecomdev_varnish/observer</class>
+                        <method>controllerActionLayoutLoadBefore</method>
+                    </ecomdev_varnish>
+                </observers>
+            </controller_action_layout_load_before>
+        </events>
+    </frontend>
+
+    <default>
+        <varnish>
+            <settings>
+                <active>1</active>
+                <debug>1</debug>
+                <server>127.0.0.1:6082</server>
+            </settings>
+            <pages>
+                <catalog_category_view_time>360</catalog_category_view_time>
+                <catalog_product_view_time>360</catalog_product_view_time>
+                <cms_index_index_time>360</cms_index_index_time>
+                <cms_page_view_time>360</cms_page_view_time>
+                <varnish_esi_handle_time>360</varnish_esi_handle_time>
+            </pages>
+        </varnish>
+    </default>
+
+    <crontab>
+        <jobs>
+            <ecomdev_varnish>
+                <schedule>
+                    <cron_expr>* * * * *</cron_expr>
+                </schedule>
+                <run>
+                    <model>ecomdev_varnish/observer::backgroundBan</model>
+                </run>
+            </ecomdev_varnish>
+        </jobs>
+    </crontab>
+
+</config>

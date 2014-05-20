@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<config>
+    <modules>
+        <EcomDev_Varnish>
+            <codePool>community</codePool>
+            <active>true</active>
+        </EcomDev_Varnish>
+    </modules>
+</config>

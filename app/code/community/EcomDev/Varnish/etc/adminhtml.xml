@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    /**
+    * Varnish extension
+    *
+    * NOTICE OF LICENSE
+    *
+    * This source file is subject to the End User License Agreement for EcomDev Premium Extensions.
+    * that is bundled with this package in the file LICENSE.txt.
+    * It is also available through the world-wide-web at this URL:
+    * http://www.ecomdev.org/license-agreement
+    *
+    * @category   EcomDev
+    * @package    EcomDev_Varnish
+    * @copyright  Copyright (c) 2013 EcomDev BV (http://www.ecomdev.org)
+    * @license    http://www.ecomdev.org/license-agreement  End User License Agreement for EcomDev Premium Extensions.
+    * @author     Ivan Chepurnyi <ivan.chepurnyi@ecomdev.org>
+    */
+-->
+<config>
+    <acl>
+        <resources>
+            <admin>
+                <children>
+                    <system>
+                        <children>
+                            <config>
+                                <children>
+                                    <varnish translate="title" module="ecomdev_varnish">
+                                        <title>Varnish Configuration</title>
+                                    </varnish>
+                                </children>
+                            </config>
+                        </children>
+                    </system>
+                </children>
+            </admin>
+        </resources>
+    </acl>
+</config>
