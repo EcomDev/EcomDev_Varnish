@@ -1,0 +1,13 @@
+{
+    "name": "ivanchepurnyi/ecomdev_varnish",
+    "type": "magento-module",
+    "description": "Varnish Integration for Magento",
+	"require": {
+        "magento-hackathon/magento-composer-installer": "*"
+    },
+    "authors": [
+        {
+            "name": "Ivan Chepurnyi"
+        }
+    ]
+}
