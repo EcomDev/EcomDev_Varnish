@@ -20,7 +20,7 @@
  * CatalogRule Observer resource model
  * 
  */
-class EcomDev_Varnish_Model_Resource_CatalogRule_Observer
+class EcomDev_Varnish_Model_Resource_Catalogrule_Observer
     extends Mage_Core_Model_Resource_Db_Abstract
 {
 
