@@ -39,9 +39,11 @@ class EcomDev_Varnish_Model_Processor_Product
     {
         // Clear category cache for new products
         if ($this->_isForUpdate && !$object->getId()) {
+            $result = array();
             foreach ($object->getCategoryIds() as $categoryId) {
-                return EcomDev_Varnish_Model_Processor_Category::TAG_PREFIX . $categoryId;
+                $result[] = EcomDev_Varnish_Model_Processor_Category::TAG_PREFIX . $categoryId;
             }
+            return $result;
         }
         
         return self::TAG_PREFIX . $object->getId();
