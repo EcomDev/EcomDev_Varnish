@@ -1,6 +1,6 @@
 <?php
 
-class EcomDev_Varnish_Model_CatalogRule_Observer extends Mage_Core_Model_Abstract
+class EcomDev_Varnish_Model_Catalogrule_Observer extends Mage_Core_Model_Abstract
 {
     /**
      * List of affected product ids
