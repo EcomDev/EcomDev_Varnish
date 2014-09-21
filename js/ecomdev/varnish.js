@@ -277,6 +277,48 @@ Object.extend(EcomDev.Varnish.Esi, {
     }
 });
 
+EcomDev.Varnish.Url = Class.create({
+    initialize: function () {
+        this.url = window.location.search;
+        this.query = window.location.search;
+        this.params = $H({});
+        this.parse();
+    },
+    parse: function () {
+        if (this.query) {
+            var params = this.query.substring(1).split('&');
+            for (var i = 0, l = params.length; i < l; i++) {
+                var parts = params[i].split('=');
+                if (parts.length == 2) {
+                    this.params.set(decodeURIComponent(parts[0]), decodeURIComponent(parts[1]));
+                } else if (parts.length == 1) {
+                    this.params.set(decodeURIComponent(parts[0]), true);
+                }
+            }
+        }
+        return this;
+    },
+    reloadWithout: function (param) {
+        var query = '';
+        this.params.each(function (pair) {
+            if (Object.isArray(param) && param.indexOf(pair.key) !== -1) {
+                return;
+            } else if (pair.key == param) {
+                return;
+            }
+            
+            query += encodeURIComponent(pair.key) + '=' + encodeURIComponent(pair.value);
+        });
+        var url = window.location.pathname;
+        if (query.length > 0) {
+            url += '?' + query;
+        } 
+        window.location.href = url;
+    }
+});
+
+EcomDev.Varnish.currentUrl = new EcomDev.Varnish.Url();
+
 Object.extend(EcomDev.Varnish, {
     onDomReady: function () {
         var keys = Object.keys(this).without('onDomReady');

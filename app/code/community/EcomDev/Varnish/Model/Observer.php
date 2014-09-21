@@ -100,6 +100,8 @@ class EcomDev_Varnish_Model_Observer
             Mage::app()->setUseSessionVar(false);
             Mage::app()->setUseSessionInUrl(false);
         }
+        
+        Mage::getSingleton('ecomdev_varnish/cookie')->setRequest($controllerAction->getRequest());
 
         return $this;
     }
@@ -137,17 +139,13 @@ class EcomDev_Varnish_Model_Observer
     }
 
     /**
-     * Adds varnish cookie headers
+     * Adds varnish cookies
      *
-     * @param Mage_Core_Controller_Front_Action $controllerAction
      * @return $this
      */
-    protected function _addCookies($controllerAction)
+    protected function _addCookies()
     {
-        foreach ($this->_getHelper()->getCookies() as $cookie => $value) {
-            Mage::getSingleton('core/cookie')->set($cookie, $value, null, null, null, null, false);
-        }
-        
+        Mage::getSingleton('ecomdev_varnish/cookie')->apply();        
         return $this;
     }
     
@@ -223,14 +221,12 @@ class EcomDev_Varnish_Model_Observer
             return;
         }
         
-       
-
         /* @var $controllerAction Mage_Core_Controller_Front_Action */
         $controllerAction = $observer->getControllerAction();
 
         if (!Mage::app()->getStore()->isAdmin() 
             && $controllerAction->getResponse()->canSendHeaders(false)) {
-            $this->_addCookies($controllerAction)
+            $this->_addCookies()
                 ->_addResponseHeaders($controllerAction);
         }
         

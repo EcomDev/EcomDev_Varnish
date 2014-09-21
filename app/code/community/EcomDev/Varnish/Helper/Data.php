@@ -28,6 +28,9 @@ class EcomDev_Varnish_Helper_Data extends Mage_Core_Helper_Abstract
 {
     const HEADER_TTL = 'X-Cache-Ttl';
     const HEADER_OBJECTS = 'X-Cache-Objects';
+    const HEADER_SEGMENT = 'X-Cache-Segment';
+    const HEADER_STORE = 'X-Cache-Store';
+    const HEADER_OBJECTS_ITEMS = 20;
     const OBJECT_TAG_FORMAT = ':%s:';
     
     const XML_PATH_ALLOWED_PAGES = 'varnish/pages';
@@ -151,16 +154,29 @@ class EcomDev_Varnish_Helper_Data extends Mage_Core_Helper_Abstract
 
         // Add object tags header only if it is not added
         if ($this->_objectTags && !$this->hasVarnishHeader(self::HEADER_OBJECTS)) {
-            $this->addVarnishHeader(
-                self::HEADER_OBJECTS, 
-                implode(
-                    ',', 
-                    array_map(
-                        array($this, 'formatObjectTag'),
-                        $this->_objectTags
-                    )
-                )
+            $objects = array_map(
+                array($this, 'formatObjectTag'),
+                $this->_objectTags
             );
+            
+            $headerValue = array();
+            
+            foreach (array_chunk($objects, self::HEADER_OBJECTS_ITEMS) as $objectSubset) {
+                $headerValue[] = implode(',', $objectSubset);
+            }
+            
+            $this->setVarnishHeader(
+                self::HEADER_OBJECTS, 
+                $headerValue
+            );
+        }
+        
+        if (!$this->hasVarnishHeader(self::HEADER_SEGMENT)) {
+            $this->setVarnishHeader(self::HEADER_SEGMENT, $this->hashData($this->getCustomerSegment()));
+        }
+        
+        if (!$this->hasVarnishHeader(self::HEADER_STORE)) {
+            $this->setVarnishHeader(self::HEADER_STORE, Mage::app()->getStore()->getCode());
         }
         
         return $this;
@@ -300,12 +316,13 @@ class EcomDev_Varnish_Helper_Data extends Mage_Core_Helper_Abstract
      * 
      * @param string $name
      * @param string $value
+     * @param bool $httpOnly
      * @return $this
      */
-    public function addCookie($name, $value)
+    public function addCookie($name, $value, $httpOnly = false)
     {
-        $this->_cookies[$name] = $value;
-        return $this;   
+        Mage::getSingleton('ecomdev_varnish/cookie')->set($name, $value, $httpOnly);
+        return $this;
     }
 
     /**
@@ -315,7 +332,7 @@ class EcomDev_Varnish_Helper_Data extends Mage_Core_Helper_Abstract
      */
     public function getCookies()
     {
-        return $this->_cookies;
+        return Mage::getSingleton('ecomdev_varnish/cookie')->getAll();
     }
 
     /**
@@ -566,6 +583,51 @@ class EcomDev_Varnish_Helper_Data extends Mage_Core_Helper_Abstract
         Mage::dispatchEvent('ecomdev_varnish_customer_segment', array('segment' => $segment));
         
         return $segment->getData();
+    }
+
+    /**
+     * Hashes data for varnish
+     *
+     * @param string $hashData
+     * @param bool $addDeviceType
+     * @return string
+     */
+    public function hashData($hashData, $addDeviceType = true)
+    {
+        if (is_array($hashData)) {
+            $hashData = serialize($hashData);
+        }
+
+        if ($addDeviceType) {
+            // Add device type
+            $hashData .= $this->_getRequest()->getServer('HTTP_X_UA_DEVICE');
+        }
+
+        return md5($hashData);
+    }
+    
+    /**
+     * Calls a helper depending on internal level of cache of the page 
+     * 
+     * @param string $helper
+     * @param string $method
+     * @param mixed $cachedValue
+     * @param array $args
+     * @return mixed
+     */
+    public function cachedHelperCall($helper, $method, $cachedValue, $args = array())
+    {
+        if ($this->isActive() && !$this->getIsInternal()) {
+            return $cachedValue;
+        }
+        
+        $helper = Mage::helper($helper);
+        
+        if (!empty($args)) {
+            return call_user_func_array(array($helper, $method), $args);
+        }
+        
+        return $helper->$method();
     }
     
 }
