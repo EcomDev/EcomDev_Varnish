@@ -206,7 +206,7 @@
         <varnish>
             <settings>
                 <active>1</active>
-                <debug>1</debug>
+                <debug>0</debug>
                 <server>127.0.0.1:6082</server>
             </settings>
             <pages>

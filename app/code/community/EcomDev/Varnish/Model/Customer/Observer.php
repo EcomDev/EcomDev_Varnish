@@ -40,18 +40,12 @@ class EcomDev_Varnish_Model_Customer_Observer
      * Hashes data for varnish cookie
      *
      * @param string $hashData
+     * @param bool $addDeviceType
      * @return string
      */
-    protected function _hashData($hashData)
+    protected function _hashData($hashData, $addDeviceType = true)
     {
-        if (is_array($hashData)) {
-            $hashData = serialize($hashData);
-        }
-
-        // Add device type
-        $hashData .= Mage::app()->getRequest()->getServer('HTTP_X_UA_DEVICE');
-
-        return md5($hashData);
+        return $this->_getHelper()->hashData($hashData, $addDeviceType);
     }
 
     /**
@@ -63,9 +57,17 @@ class EcomDev_Varnish_Model_Customer_Observer
     {
         $quoteData = $observer->getQuote()->debug();
         unset($quoteData['updated_at']);
-        $this->_getHelper()
-            ->addCookie(self::COOKIE_CART, $this->_hashData($quoteData))
-            ->addCookie(self::COOKIE_SEGMENT, $this->_hashData($this->_getHelper()->getCustomerSegment()));
+        $this->setCookies(array(
+            self::COOKIE_CART => $this->_hashData($quoteData),
+            self::COOKIE_SEGMENT => $this->_hashData($this->_getHelper()->getCustomerSegment())
+        ));
+    }
+    
+    public function setCookies($cookies)
+    {
+        foreach ($cookies as $cookie => $value) {
+            $this->_getHelper()->addCookie($cookie, $value);
+        }
     }
 
     /**
@@ -74,11 +76,12 @@ class EcomDev_Varnish_Model_Customer_Observer
      */
     public function setLoginCookie()
     {
-        $this->_getHelper()
-            ->addCookie(self::COOKIE_CART, $this->_hashData(Varien_Date::now()))
-            ->addCookie(self::COOKIE_IS_LOGGED_IN, 1)
-            ->addCookie(self::COOKIE_SEGMENT, $this->_hashData($this->_getHelper()->getCustomerSegment()))
-            ->addCookie(self::COOKIE_CUSTOMER, $this->_hashData(Varien_Date::now()));
+        $this->setCookies(array(
+            self::COOKIE_CART => $this->_hashData(Varien_Date::now()),
+            self::COOKIE_SEGMENT => $this->_hashData($this->_getHelper()->getCustomerSegment()),
+            self::COOKIE_CUSTOMER => $this->_hashData(Varien_Date::now()),
+            self::COOKIE_IS_LOGGED_IN => 1
+        ));
     }
 
     /**
@@ -87,10 +90,11 @@ class EcomDev_Varnish_Model_Customer_Observer
      */
     public function unsetLoginCookie()
     {
-        $this->_getHelper()
-            ->addCookie(self::COOKIE_CUSTOMER, $this->_hashData(Varien_Date::now()))
-            ->addCookie(self::COOKIE_IS_LOGGED_IN, 0)
-            ->addCookie(self::COOKIE_SEGMENT, 0)
-            ->addCookie(self::COOKIE_CART, $this->_hashData(Varien_Date::now()));
+        $this->setCookies(array(
+            self::COOKIE_CART => $this->_hashData(Varien_Date::now()),
+            self::COOKIE_SEGMENT => 0,
+            self::COOKIE_CUSTOMER => $this->_hashData(Varien_Date::now()),
+            self::COOKIE_IS_LOGGED_IN => 0
+        ));
     }
 }
