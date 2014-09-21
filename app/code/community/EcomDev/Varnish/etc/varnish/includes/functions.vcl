@@ -70,8 +70,10 @@ sub normalize_gzip_ua {
 
 sub normalize_customer_segment {
     unset req.http.X-Cache-Segment;
-    set req.http.X-Cache-Segment = regsuball(req.http.Cookie, "^.*segment_checksum=([a-zA-Z0-9]+).*$", "\1");
-    if (req.http.X-Cache-Segment) {
-        set client.identity = client.identity + req.http.X-Cache-Segment; 
+    if( req.http.Cookie ~ "segment_checksum" ) {
+        set req.http.X-Cache-Segment = regsuball(req.http.Cookie, "^.*segment_checksum=([a-zA-Z0-9]+).*$", "\1");
+        if (req.http.X-Cache-Segment) {
+            set client.identity = client.identity + req.http.X-Cache-Segment; 
+        }
     }
 }
