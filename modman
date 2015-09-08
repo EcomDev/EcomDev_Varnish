@@ -1,6 +1,5 @@
-app/code/community/EcomDev/Varnish app/code/community/EcomDev/Varnish 
-app/design/frontend/base/default/layout/ecomdev/varnish.xml app/design/frontend/base/default/layout/ecomdev/varnish.xml
-app/design/frontend/base/default/template/ecomdev/varnish app/design/frontend/base/default/template/ecomdev/varnish
-js/ecomdev/varnish.js js/ecomdev/varnish.js
-app/etc/modules/EcomDev_Varnish.xml app/etc/modules/EcomDev_Varnish.xml
-lib/VarnishAdminSocket.php lib/VarnishAdminSocket.php 
+src/app/code/community/EcomDev/Varnish app/code/community/EcomDev/Varnish 
+src/app/design/frontend/base/default/layout/ecomdev/varnish.xml app/design/frontend/base/default/layout/ecomdev/varnish.xml
+src/app/design/frontend/base/default/template/ecomdev/varnish app/design/frontend/base/default/template/ecomdev/varnish
+src/js/ecomdev/varnish.js js/ecomdev/varnish.js
+src/app/etc/modules/EcomDev_Varnish.xml app/etc/modules/EcomDev_Varnish.xml
