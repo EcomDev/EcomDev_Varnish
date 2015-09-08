@@ -1,1 +1,7 @@
-# Created by .ignore support plugin (hsz.mobi)
+# Composer files
+composer.phar
+vendor/
+composer.lock
+build/
+
+
