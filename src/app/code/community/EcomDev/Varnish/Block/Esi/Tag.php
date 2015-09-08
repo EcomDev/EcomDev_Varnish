@@ -18,6 +18,11 @@
 
 /**
  * ESI Tag Placeholder
+ *
+ * @method string getBlockUrl()
+ * @method string getHtmlId()
+ * @method string getTtl()
+ * @method $this setTtl(string $ttl)
  */
 class EcomDev_Varnish_Block_Esi_Tag extends Mage_Core_Block_Template
 {
@@ -69,13 +74,19 @@ class EcomDev_Varnish_Block_Esi_Tag extends Mage_Core_Block_Template
             'handles' => $handles,
             'package' => Mage::getSingleton('core/design_package')->getPackageName(),
             'theme' => Mage::getSingleton('core/design_package')->getTheme('default'),
-            'checksum' => md5($handles . $this->getBlockName() . Mage::helper('ecomdev_varnish')->getEsiKey()),
+            'store' => Mage::app()->getStore()->getCode(),
             'block' => $this->getBlockName()
         );
-        
-        
+
+        if ($this->getTtl()) {
+            $params['ttl'] = $this->getTtl();
+        }
+
+        $params['checksum'] = Mage::helper('ecomdev_varnish')->getChecksum($params);
+        $params['_secure'] = Mage::app()->getStore()->isCurrentlySecure();
+
         $url = $this->getUrl('varnish/esi/handle', $params);
-        $this->setBlockUrl(parse_url($url, PHP_URL_PATH));
+        $this->setBlockUrl($url);
         $this->setHtmlId($this->getBlockAlias() . '-placeholder');
         
         return parent::_beforeToHtml();

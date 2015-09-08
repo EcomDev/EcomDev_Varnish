@@ -16,6 +16,11 @@
  * @author     Ivan Chepurnyi <ivan.chepurnyi@ecomdev.org>
  */
 
+
+use ride\library\varnish\VarnishPool;
+use ride\library\varnish\VarnishAdmin;
+use ride\library\varnish\exception\VarnishException;
+
 /**
  * Connector to the varnish admin
  * 
@@ -24,54 +29,77 @@ class EcomDev_Varnish_Model_Connector
 {
     const XML_PATH_VARNISH_SERVER = 'varnish/settings/server';
     const XML_PATH_VARNISH_SECRET = 'varnish/settings/secret';
+
     const HEADER_OBJECTS = EcomDev_Varnish_Helper_Data::HEADER_OBJECTS;
 
     /**
      * Admin socket for varnish system
      * 
-     * @var VarnishAdminSocket[]
+     * @var VarnishPool
      */
-    protected $_adapter;
+    protected $pool;
+
+    /**
+     * Returns nothing as a different library
+     * used now for varnish communication
+     *
+     * @deprecated since 2.0.0
+     */
+    public function getAdapter()
+    {
+        return array();
+    }
 
     /**
      * Return Varnish Admin socket
      * 
-     * @return VarnishAdminSocket[]
+     * @return VarnishPool
      */
-    public function getAdapter()
+    public function getVarnishPool()
     {
-        if ($this->_adapter === null) {
-            $this->_initAdapter();
+        if ($this->pool === null) {
+            $this->_initVarnishPool();
         }
         
-        return $this->_adapter;
+        return $this->pool;
     }
-    
-    protected function _initAdapter()
+
+    /**
+     * Initializes varnish pool
+     *
+     * @return $this
+     * @throws VarnishException
+     */
+    protected function _initVarnishPool()
     {
-        $this->_adapter = array();
+        $this->pool = new VarnishPool();
+
         $addresses =  Mage::getStoreConfig(self::XML_PATH_VARNISH_SERVER);
-        $secret = Mage::getStoreConfig(self::XML_PATH_VARNISH_SECRET);
+        $secret = Mage::getStoreConfig(self::XML_PATH_VARNISH_SECRET) . "\n";
         
         $lines = explode("\n", $addresses);
+        $instantiated = array();
         foreach ($lines as $line) {
             $line = trim($line);
             
             if (!preg_match('/^[a-z0-9\.]+:\d+$/', $line) 
-                || isset($this->_adapter[$line])) {
+                || isset($instantiated[$line])) {
                 continue;
             }
             
             list($host, $port) = explode(':', $line);
+
             try {
-                $this->_adapter[$line] = new VarnishAdminSocket($host, $port, '3');
-                $this->_adapter[$line]->set_auth($secret . "\n");
-                $this->_adapter[$line]->connect();
-            } catch (Exception $e) {
+                $this->pool->addServer(new VarnishAdmin($host, $port, $secret));
+            } catch (VarnishException $e) {
                 Mage::logException($e);
             }
+
+            $instantiated[$line] = true;
         }
-        
+
+        $this->pool->setIgnoreOnFail(true);
+
         return $this;
     }
 
@@ -83,10 +111,12 @@ class EcomDev_Varnish_Model_Connector
      */
     public function banTags($tags)
     {
-        $this->walk(
-            'purge', 
-            'obj.http.'.self::HEADER_OBJECTS . ' ~ ' . implode('|', $tags)
-        );
+        try {
+            $this->getVarnishPool()->ban('obj.http.' . self::HEADER_OBJECTS . ' ~ ' . implode('|', $tags));
+        } catch (VarnishException $e) {
+            Mage::logException($e);
+        }
+
         return $this;
     }
 
@@ -97,19 +127,22 @@ class EcomDev_Varnish_Model_Connector
      * @param null|string|int $firstArg
      * @param null|string|int $secondArg
      * @return $this
+     * @deprecated since 2.0.0
      */
     public function walk($method, $firstArg = null, $secondArg = null)
     {
-        foreach ($this->getAdapter() as $adapter) {
-            if ($firstArg === null && $secondArg === null) {
-                $adapter->$method();
-            } elseif ($secondArg === null) {
-                $adapter->$method($firstArg);
-            } else {
-                $adapter->$method($firstArg, $secondArg);
-            }
+        if ($method === 'purge') {
+            $method = 'ban';
         }
-        
+
+        if ($firstArg === null && $secondArg === null) {
+            $this->getVarnishPool()->$method();
+        } elseif ($secondArg === null) {
+            $this->getVarnishPool()->$method($firstArg);
+        } else {
+            $this->getVarnishPool()->$method($firstArg, $secondArg);
+        }
+
         return $this;
     }
 }

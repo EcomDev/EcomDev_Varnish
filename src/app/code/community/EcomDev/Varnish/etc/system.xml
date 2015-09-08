@@ -42,14 +42,6 @@
                             <show_in_website>1</show_in_website>
                             <comment>If you want to enable varnish only for one website, you need to enable it on global level and disable on other websites.</comment>
                         </active>
-                        <esi_noncached translate="label comment">
-                            <label>Use ESI on All Pages</label>
-                            <source_model>adminhtml/system_config_source_yesno</source_model>
-                            <frontend_type>select</frontend_type>
-                            <sort_order>20</sort_order>
-                            <show_in_default>1</show_in_default>
-                            <comment>Will emulate ESI on non-processed ESI pages</comment>
-                        </esi_noncached>
                         <esi_key translate="label comment">
                             <label>ESI Signature Key</label>
                             <frontend_type>text</frontend_type>
@@ -70,11 +62,30 @@
                             <sort_order>30</sort_order>
                             <show_in_default>1</show_in_default>
                         </secret>
+                        <gzip translate="label">
+                            <label>Enable Gzip Compression</label>
+                            <source_model>adminhtml/system_config_source_yesno</source_model>
+                            <frontend_type>select</frontend_type>
+                            <sort_order>40</sort_order>
+                            <show_in_default>1</show_in_default>
+                            <show_in_store>0</show_in_store>
+                            <show_in_website>0</show_in_website>
+                        </gzip>
+                        <store_segment>
+                            <label>Add Store to customer segment</label>
+                            <comment>Should be used when you have the same url for multiple store views</comment>
+                            <source_model>adminhtml/system_config_source_yesno</source_model>
+                            <frontend_type>select</frontend_type>
+                            <sort_order>45</sort_order>
+                            <show_in_default>1</show_in_default>
+                            <show_in_website>1</show_in_website>
+                            <show_in_store>1</show_in_store>
+                        </store_segment>
                         <debug translate="label">
                             <label>Debug</label>
                             <source_model>adminhtml/system_config_source_yesno</source_model>
                             <frontend_type>select</frontend_type>
-                            <sort_order>40</sort_order>
+                            <sort_order>50</sort_order>
                             <show_in_default>1</show_in_default>
                             <show_in_store>1</show_in_store>
                             <show_in_website>1</show_in_website>

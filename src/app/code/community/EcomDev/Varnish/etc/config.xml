@@ -207,6 +207,8 @@
             <settings>
                 <active>1</active>
                 <debug>0</debug>
+                <gzip>1</gzip>
+                <store_segment>0</store_segment>
                 <server>127.0.0.1:6082</server>
             </settings>
             <pages>
@@ -231,5 +233,11 @@
             </ecomdev_varnish>
         </jobs>
     </crontab>
+
+    <shell>
+        <layout>
+            <updates></updates>
+        </layout>
+    </shell>
 
 </config>

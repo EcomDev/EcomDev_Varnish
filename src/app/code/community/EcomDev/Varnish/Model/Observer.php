@@ -103,6 +103,14 @@ class EcomDev_Varnish_Model_Observer
         
         Mage::getSingleton('ecomdev_varnish/cookie')->setRequest($controllerAction->getRequest());
 
+        if ($token = $controllerAction->getRequest()->getParam('form_key')) {
+            if ($this->_getHelper()->validateToken($token)) {
+                Mage::getSingleton('core/session')->setData('_form_key', $token);
+                // After we set token, it is not valid anymore for next request, so we need to generate a new one
+                $this->_getHelper()->generateToken();
+            }
+        }
+
         return $this;
     }
 
