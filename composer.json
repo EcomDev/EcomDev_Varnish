@@ -1,13 +1,17 @@
 {
-    "name": "ivanchepurnyi/ecomdev_varnish",
+    "name": "ecomdev/magento-varnish",
     "type": "magento-module",
-    "description": "Varnish Integration for Magento",
+    "description": "Varnish Integration framework for Magento",
 	"require": {
-        "magento-hackathon/magento-composer-installer": "*"
+        "magento-hackathon/magento-composer-installer": "*",
+        "ride/lib-varnish": "*"
     },
     "authors": [
         {
             "name": "Ivan Chepurnyi"
         }
-    ]
+    ],
+    "replace": {
+       "ivanchepurnyi/ecomdev_varnish": "self.version"
+    }
 }
