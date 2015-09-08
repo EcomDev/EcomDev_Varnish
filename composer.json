@@ -4,7 +4,7 @@
     "description": "Varnish Integration framework for Magento",
 	"require": {
         "magento-hackathon/magento-composer-installer": "*",
-        "ride/lib-varnish": "*"
+        "ride/lib-varnish": "dev-master"
     },
     "authors": [
         {
