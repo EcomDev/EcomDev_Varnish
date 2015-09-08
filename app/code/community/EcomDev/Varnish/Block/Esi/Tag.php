@@ -22,14 +22,18 @@
 class EcomDev_Varnish_Block_Esi_Tag extends Mage_Core_Block_Template
 {
     const ESI_TAG = '';
-    
+
+    protected $_handles = array();
+
+    /**
+     * Constructor sets a default ESI block template
+     *
+     */
     protected function _construct()
     {
         $this->setTemplate('ecomdev/varnish/esi.phtml');
     }
-    
-    protected $_handles = array();
-    
+
     /**
      * Adds handles for rendering ESI include
      * 
