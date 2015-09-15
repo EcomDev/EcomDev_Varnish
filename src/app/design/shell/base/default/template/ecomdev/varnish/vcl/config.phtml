@@ -342,7 +342,7 @@ sub vcl_fetch {
     # Make 404 page being cached for 30 seconds to prevent backend load
     if (beresp.status == 404) {
         set beresp.ttl = 30s;
-        return (deliver)
+        return (deliver);
     }
 
     # Hit-for-pass for auth and request erors for 5s
@@ -414,8 +414,8 @@ sub vcl_deliver {
         header.append(resp.http.Set-Cookie, "store=" + resp.http.X-Cache-Store + "; Domain=." + req.http.Host + "; Path=/; HttpOnly");
     }
 
-    # Remove debug header om case f
-    if (client.ip ~ is_local && ipcast.ip(req.http.<?php echo $this->getConfig()->getIpHeader();?>) !~ allow_refresh) {
+    # Remove debug headers if ip address is not whitelisted
+    if (client.ip ~ is_local && ipcast.ip(req.http.<?php echo $this->getConfig()->getIpHeader();?>, "127.0.0.1") !~ allow_refresh) {
         remove resp.http.X-Debug;
         remove resp.http.X-Varnish;
         remove resp.http.X-Cache;
