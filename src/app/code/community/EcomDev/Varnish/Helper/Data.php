@@ -45,6 +45,8 @@ class EcomDev_Varnish_Helper_Data extends Mage_Core_Helper_Abstract
     const XML_PATH_ACTIVE = 'varnish/settings/active';
     const XML_PATH_ESI_KEY = 'varnish/settings/esi_key';
     const XML_PATH_SEGMENT_STORE = 'varnish/settings/store_segment';
+    const XML_PATH_SEGMENT_CUSTOMER_GROUP = 'varnish/settings/customer_group_segment';
+    const XML_PATH_SEGMENT_CURRENCY = 'varnish/settings/currency_segment';
     const XML_PATH_GZIP = 'varnish/settings/gzip';
     const XML_PATH_DEBUG = 'varnish/settings/debug';
     
@@ -129,10 +131,9 @@ class EcomDev_Varnish_Helper_Data extends Mage_Core_Helper_Abstract
     public function getAjaxReloadUrl()
     {
         if ($this->_ajaxReloadUrl === null) {
-            $this->_ajaxReloadUrl = parse_url(
-                $this->_getUrl('varnish/ajax/reload'), 
-                PHP_URL_PATH
-            );
+            $this->_ajaxReloadUrl = $this->_getUrl('varnish/ajax/reload', array(
+                '_secure' => Mage::app()->getStore()->isCurrentlySecure()
+            ));
         }
         
         return $this->_ajaxReloadUrl;
@@ -591,15 +592,42 @@ class EcomDev_Varnish_Helper_Data extends Mage_Core_Helper_Abstract
     public function getCustomerSegment()
     {
         $segment = new Varien_Object();
-        $segment->setCustomerGroupId(Mage::getSingleton('customer/session')->getCustomerGroupId());
 
-        if ($segment->getData()) {
-            $segment->setStoreId(Mage::app()->getStore()->getId());
+        $segmentValues = $this->_getSegmentValues();
+
+        foreach ($segmentValues as $field => $configCallbackPair) {
+            if (is_array($configCallbackPair) && Mage::getStoreConfigFlag($configCallbackPair[0])) {
+                $segment->setData($field, $configCallbackPair[1]());
+            } elseif (is_string($configCallbackPair)) {
+                $segment->setData($field, $configCallbackPair);
+            }
         }
 
         Mage::dispatchEvent('ecomdev_varnish_customer_segment', array('segment' => $segment));
         
         return $segment->getData();
+    }
+
+    /**
+     * Returns list of segment values callbacks
+     *
+     * If array key is a string, than value added directly
+     *
+     * @return array
+     */
+    protected function _getSegmentValues()
+    {
+        return array(
+            'customer_group_id' => array(self::XML_PATH_SEGMENT_CUSTOMER_GROUP, function () {
+                return Mage::getSingleton('customer/session')->getCustomerGroupId();
+            }),
+            'store_id' => array(self::XML_PATH_SEGMENT_CUSTOMER_GROUP, function () {
+                return Mage::app()->getStore()->getId();
+            }),
+            'currency' => array(self::XML_PATH_SEGMENT_CURRENCY, function () {
+                return Mage::app()->getStore()->getCurrentCurrencyCode();
+            })
+        );
     }
 
     /**
@@ -612,7 +640,7 @@ class EcomDev_Varnish_Helper_Data extends Mage_Core_Helper_Abstract
     public function hashData($hashData, $addDeviceType = true)
     {
         if (is_array($hashData)) {
-            $hashData = serialize($hashData);
+            $hashData = json_encode($hashData);
         }
 
         if ($addDeviceType) {

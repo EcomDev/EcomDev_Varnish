@@ -71,8 +71,18 @@
                             <show_in_store>0</show_in_store>
                             <show_in_website>0</show_in_website>
                         </gzip>
+                        <customer_group_segment>
+                            <label>Add Customer Group to Customer Segment</label>
+                            <comment>Should be used when you have difference in prices per customer group</comment>
+                            <source_model>adminhtml/system_config_source_yesno</source_model>
+                            <frontend_type>select</frontend_type>
+                            <sort_order>42</sort_order>
+                            <show_in_default>1</show_in_default>
+                            <show_in_website>1</show_in_website>
+                            <show_in_store>1</show_in_store>
+                        </customer_group_segment>
                         <store_segment>
-                            <label>Add Store to customer segment</label>
+                            <label>Add Store to Customer Segment</label>
                             <comment>Should be used when you have the same url for multiple store views</comment>
                             <source_model>adminhtml/system_config_source_yesno</source_model>
                             <frontend_type>select</frontend_type>
@@ -81,6 +91,18 @@
                             <show_in_website>1</show_in_website>
                             <show_in_store>1</show_in_store>
                         </store_segment>
+                        <currency_segment>
+                            <label>Add Currency to Customer Segment</label>
+                            <comment><![CDATA[Should be used when you show different currencies on the same url.
+                            Please note that just enabling this feature is not enough,
+                            as it is required to override <strong>core/store</strong> model in order to retrieve current currency from cookie instead of session object.]]></comment>
+                            <source_model>adminhtml/system_config_source_yesno</source_model>
+                            <frontend_type>select</frontend_type>
+                            <sort_order>46</sort_order>
+                            <show_in_default>1</show_in_default>
+                            <show_in_website>1</show_in_website>
+                            <show_in_store>1</show_in_store>
+                        </currency_segment>
                         <debug translate="label">
                             <label>Debug</label>
                             <source_model>adminhtml/system_config_source_yesno</source_model>

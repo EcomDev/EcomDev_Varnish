@@ -86,6 +86,13 @@ class EcomDev_Varnish_Block_Esi_Tag extends Mage_Core_Block_Template
         $params['_secure'] = Mage::app()->getStore()->isCurrentlySecure();
 
         $url = $this->getUrl('varnish/esi/handle', $params);
+
+        // Replace http with https,
+        // So varnish can process ESI requests correctly and take domain name into account
+        if (strpos($url, 'https://') === 0) {
+            $url = 'http:' . substr($url, 6);
+        }
+
         $this->setBlockUrl($url);
         $this->setHtmlId($this->getBlockAlias() . '-placeholder');
         

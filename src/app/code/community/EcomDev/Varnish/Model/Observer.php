@@ -166,13 +166,6 @@ class EcomDev_Varnish_Model_Observer
     protected function _addResponseHeaders($controllerAction)
     {
         if ($this->_getHelper()->isDebug()) {
-            foreach ($controllerAction->getRequest()->getServer() as $key => $value) {
-                if (strpos($key, 'HTTP_') === 0) {
-                    $header = substr($key, 5);
-                    $controllerAction->getResponse()->setHeader('X-Requested-' . $header, $value);
-                }
-            }
-
             $controllerAction->getResponse()->setHeader('X-Debug', '1');
         }
 

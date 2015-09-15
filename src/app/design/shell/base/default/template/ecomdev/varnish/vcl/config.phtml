@@ -252,11 +252,6 @@ sub vcl_recv {
         return (pipe);
     }
 
-    if (req.http.Authorization) {
-        # Not cacheable by default
-        return (pass);
-    }
-
     # Do not cache requests that are not cachable. Cache only GET, HEAD and OPTIONS
     if (req.request != "GET" && req.request != "HEAD" && req.request != "OPTIONS") {
         return (pass);
@@ -305,6 +300,12 @@ sub vcl_hash {
         hash_data(req.http.X-Cache-Segment);
     }
 
+    # Add authorization as cache key,
+    # in order to make possible checking staging environments
+    if (req.http.Authorization) {
+        hash_data(req.http.Authorization);
+    }
+
     return (hash);
 }
 
@@ -334,13 +335,26 @@ sub vcl_fetch {
     # To prevent accidental replace, we only filter the 301/302 redirects for now.
     if (beresp.status == 301 || beresp.status == 302) {
         set beresp.http.Location = regsub(beresp.http.Location, ":[0-9]+", "");
-        set beresp.grace = 0s;
         set beresp.ttl = 30s;
         return (hit_for_pass);
     }
 
-    if (beresp.status == 404 || beresp.status > 500) {
-        unset beresp.http.Set-Cookie;
+    # Make 404 page being cached for 30 seconds to prevent backend load
+    if (beresp.status == 404) {
+        set beresp.ttl = 30s;
+        return (deliver)
+    }
+
+    # Hit-for-pass for auth and request erors for 5s
+    if (beresp.status > 400 && beresp.status < 500) {
+        set beresp.ttl = 5s;
+        return (hit_for_pass);
+    }
+
+    # Hit-for-pass auth for backend errors, without ttl and grace definition
+    if (beresp.status >= 500 && beresp.status < 600) {
+        set beresp.ttl = 0s;
+        set beresp.grace = 0s;
         return (hit_for_pass);
     }
 
@@ -369,7 +383,7 @@ sub vcl_fetch {
         set beresp.grace = <?php echo $this->getConfig()->getGracePeriod();?>;
         unset beresp.http.Set-Cookie;
     } else {
-        set beresp.grace = 0s;
+        set beresp.ttl = 0s;
         return (hit_for_pass);
     }
 
@@ -400,9 +414,15 @@ sub vcl_deliver {
         header.append(resp.http.Set-Cookie, "store=" + resp.http.X-Cache-Store + "; Domain=." + req.http.Host + "; Path=/; HttpOnly");
     }
 
+    # Remove debug header om case f
+    if (client.ip ~ is_local && ipcast.ip(req.http.<?php echo $this->getConfig()->getIpHeader();?>) !~ allow_refresh) {
+        remove resp.http.X-Debug;
+        remove resp.http.X-Varnish;
+        remove resp.http.X-Cache;
+    }
+
     # Remove headers that should be removed when there is no debug enabled
     if (!resp.http.X-Debug) {
-        remove resp.http.X-Cache;
         remove resp.http.X-UA-Device;
         remove resp.http.X-Cache-Segment;
         remove resp.http.X-Cache-Objects;
@@ -411,7 +431,6 @@ sub vcl_deliver {
         remove resp.http.Server;
         remove resp.http.Via;
         remove resp.http.Link;
-        remove resp.http.X-Varnish;
     }
 
     return (deliver);

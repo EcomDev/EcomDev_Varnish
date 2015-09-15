@@ -289,6 +289,7 @@ class EcomDev_Varnish_Model_Vcl_Config_Array
                 'frontend',
                 'adminhtml',
                 'store',
+                'currency',
                 EcomDev_Varnish_Helper_Data::COOKIE_TOKEN_CHECKSUM
             )
         );
