@@ -154,15 +154,15 @@ class EcomDev_Varnish_Helper_Data extends Mage_Core_Helper_Abstract
      * 
      * @return $this
      */
-    protected function _initDefaultVarnishHeaders()
+    protected function _initDefaultVarnishHeaders($withoutTags)
     {
         // Add TTL header if any of them have been specified
-        if ($this->_ttlList) {
+        if (!$withoutTags && $this->_ttlList) {
             $this->setVarnishHeader(self::HEADER_TTL, min($this->_ttlList) . 's');
         }
 
         // Add object tags header only if it is not added
-        if ($this->_objectTags && !$this->hasVarnishHeader(self::HEADER_OBJECTS)) {
+        if (!$withoutTags && $this->_objectTags && !$this->hasVarnishHeader(self::HEADER_OBJECTS)) {
             $objects = array_map(
                 array($this, 'formatObjectTag'),
                 $this->_objectTags
@@ -264,12 +264,13 @@ class EcomDev_Varnish_Helper_Data extends Mage_Core_Helper_Abstract
     
     /**
      * Returns list of varnish headers
-     * 
+     *
+     * @param bool $withoutTags
      * @return array[]
      */
-    public function getVarnishHeaders()
+    public function getVarnishHeaders($withoutTags = false)
     {
-        $this->_initDefaultVarnishHeaders();
+        $this->_initDefaultVarnishHeaders($withoutTags);
         return $this->_varnishHeaders;
     }
 

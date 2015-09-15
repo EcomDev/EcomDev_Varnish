@@ -43,7 +43,7 @@ abstract class EcomDev_Varnish_Model_AbstractProcessor
     {
         $tags = $this->_collectTags($object);
         
-        if (!is_array($tags)) {
+        if (is_string($tags)) {
             $tags = array(
                 $tags => $tags
             );

@@ -177,16 +177,10 @@ class EcomDev_Varnish_Model_Observer
 
         if (!$this->_getHelper()->isAllowedCurrentPage()) {
             $this->performBan();
-            return $this;
-        }
-
-        if ($ttl = $this->_getHelper()->getCurrentPageTtl()) {
-            $this->_getHelper()->addTtl($ttl);
-        }
-
-        if ($controllerAction->getResponse()->canSendHeaders()
-            && !$controllerAction->getRequest()->isPost()
-            && $controllerAction->getResponse()->getHttpResponseCode() == 200) {
+        } else {
+            if ($ttl = $this->_getHelper()->getCurrentPageTtl()) {
+                $this->_getHelper()->addTtl($ttl);
+            }
 
             foreach ($this->_collectedObjects as $object) {
                 $this->_getHelper()->addObjectTags(
@@ -195,8 +189,13 @@ class EcomDev_Varnish_Model_Observer
             }
 
             $this->_collectedObjects = array();
+        }
 
-            foreach (Mage::helper('ecomdev_varnish')->getVarnishHeaders() as $name => $value) {
+
+        if ($controllerAction->getResponse()->canSendHeaders()) {
+            foreach (Mage::helper('ecomdev_varnish')->getVarnishHeaders(
+                !$this->_getHelper()->isAllowedCurrentPage()
+            ) as $name => $value) {
                 if (is_array($value)) {
                     foreach ($value as $val) {
                         $controllerAction->getResponse()->setHeader($name, $val);
@@ -206,6 +205,8 @@ class EcomDev_Varnish_Model_Observer
                 }
             }
         }
+
+
 
         return $this;
     }
@@ -225,11 +226,16 @@ class EcomDev_Varnish_Model_Observer
         /* @var $controllerAction Mage_Core_Controller_Front_Action */
         $controllerAction = $observer->getControllerAction();
 
+
         if (!Mage::app()->getStore()->isAdmin() 
             && $controllerAction->getResponse()->canSendHeaders(false)) {
             $this->_addCookies()
                 ->_addResponseHeaders($controllerAction);
         }
+
+
+        Mage::log(print_r($controllerAction->getRequest(), true), Zend_Log::DEBUG, '', true);
+        Mage::log(print_r($controllerAction->getResponse(), true), Zend_Log::DEBUG, '', true);
         
         $this->performBan();
         return $this;

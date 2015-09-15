@@ -113,8 +113,6 @@ sub normalize_url {
 }
 
 sub normalize_cookie {
-    cookie.parse(req.http.cookie);
-
     <?php if ($this->getConfig()->getCookieWhitelist()):?>
     cookie.filter_except("<?php echo implode(',', $this->getConfig()->getCookieWhitelist());?>");
     <?php endif; ?>
@@ -157,7 +155,6 @@ sub normalize_gzip_ua {
 sub normalize_customer_segment {
     unset req.http.X-Cache-Segment;
 
-
     if(cookie.isset("segment_checksum")) {
         set req.http.X-Cache-Segment = cookie.get("segment_checksum");
         if (req.http.X-Cache-Segment) {
@@ -186,13 +183,14 @@ sub vcl_recv {
         error 404 "Not Found";
     }
 
+    cookie.parse(req.http.cookie);
     call detect_admin;
 
     set client.identity = req.http.User-Agent + " " + client.ip;
 
     call normalize_url;
-    call normalize_cookie;
     call normalize_customer_segment;
+    call normalize_cookie;
     call normalize_ip_address;
 
 <?php if ($this->getConfig()->getDeviceDetectLibraryPath()): ?>
