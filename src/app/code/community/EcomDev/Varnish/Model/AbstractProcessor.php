@@ -47,6 +47,8 @@ abstract class EcomDev_Varnish_Model_AbstractProcessor
             $tags = array(
                 $tags => $tags
             );
+        } elseif (!is_array($tags)) {
+            return array();
         }
         
         return $tags;
