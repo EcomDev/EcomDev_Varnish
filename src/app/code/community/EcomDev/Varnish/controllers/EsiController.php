@@ -38,29 +38,44 @@ class EcomDev_Varnish_EsiController extends Mage_Core_Controller_Front_Action
         $this->_getHelper()->setIsEsiAllowed(false);
         Mage::app()->setUseSessionVar(false);
         Mage::app()->setUseSessionInUrl(false);
-        
-        $handles = $this->getRequest()->getParam('handles');
-        $checksum = $this->getRequest()->getParam('checksum');
-        $package = $this->getRequest()->getParam('package');
-        $theme = $this->getRequest()->getParam('theme');
-        $block = $this->getRequest()->getParam('block');
-        
-        if (!$handles || !$checksum 
-            || $checksum != md5($handles . $block . $this->_getHelper()->getEsiKey())) {
+
+        $params = $this->getRequest()->getParams();
+        $requiredParams = array(
+            'handles', 'package', 'theme', 'checksum'
+        );
+
+        if (array_diff($requiredParams, array_keys($params)) !== array()
+            || empty($params['handles'])
+            || !Mage::helper('ecomdev_varnish')->validateChecksum($params)) {
             // Output empty screen if parameters are not valid
-            $this->getResponse()->setBody('');
+            print_r($params);
+            $this->getResponse()->setHttpResponseCode(404);
+            $this->getResponse()->setBody('Invalid ESI configuration');
             return;
         }
         
-        $handles = explode(',', $handles);
-        Mage::getSingleton('core/design_package')->setPackageName($package);
-        Mage::getSingleton('core/design_package')->setTheme('default', $theme);
+        $handles = explode(',', $params['handles']);
 
+        if (!empty($params['store'])) {
+            // Apply a store view for ESI include
+            Mage::app()->setCurrentStore($params['store']);
+        }
+
+        $designPackage = Mage::getSingleton('core/design_package');
+
+        $designPackage->setPackageName($params['package']);
+        $designPackage->setTheme('default', $params['theme']);
         $this->loadLayout($handles);
-        if ($block && $this->getLayout()->getBlock($block)) {
+
+        if (isset($params['ttl'])) {
+            $this->_getHelper()->addTtl((int)$params['ttl']);
+        }
+
+        if (!empty($params['block'])
+            && $this->getLayout()->getBlock($params['block'])) {
             $this->getResponse()
                 ->setBody(
-                    $this->getLayout()->getBlock($block)->toHtml()
+                    $this->getLayout()->getBlock($params['block'])->toHtml()
                 );
         } else {
             $this->renderLayout();

@@ -30,23 +30,56 @@ class EcomDev_Varnish_AjaxController extends Mage_Core_Controller_Front_Action
     {
         return Mage::helper('ecomdev_varnish');
     }
-    
-    public function reloadAction()
+
+    /**
+     * Disables ESI processing and marks request as internal
+     *
+     * @return $this
+     */
+    public function preDispatch()
     {
-        // Prevent ESI execution in esi callback
+        $this->setFlag('token', self::FLAG_NO_START_SESSION, true);
+
+        parent::preDispatch();
+
         $this->_getHelper()->setIsEsiAllowed(false);
         $this->_getHelper()->setIsInternal(true);
-
         Mage::app()->setUseSessionVar(false);
         Mage::app()->setUseSessionInUrl(false);
-        
+
+        // Disallow any non AJAX requests to this url
+        if (!$this->getRequest()->isXmlHttpRequest()) {
+            $this->getResponse()->setHttpResponseCode(403);
+            $this->getResponse()->setBody('Forbidden');
+            $this->setFlag($this->getRequest()->getActionName(), self::FLAG_NO_DISPATCH, true);
+        }
+
+        return $this;
+    }
+
+    /**
+     * Creates token for secure form post
+     *
+     * It does creation of token without creating the actual session object
+     */
+    public function tokenAction()
+    {
+        $this->_getHelper()->generateToken();
+        $this->getResponse()->setBody(json_encode(array('status' => 'ok')));
+    }
+
+    /**
+     * Reloads JavaScript blocks
+     *
+     */
+    public function reloadAction()
+    {
         $blocks = $this->getRequest()->getParam('blocks');
         
         if (!is_array($blocks)) {
             $blocks = array_map('trim', explode(',', $blocks));
         }
-        
-        
+
         $result = array();
         $this->loadLayout();
         foreach ($blocks as $block) {
@@ -54,6 +87,7 @@ class EcomDev_Varnish_AjaxController extends Mage_Core_Controller_Front_Action
                 $result[$block] = $this->getLayout()->getBlock($block)->toHtml();
             }
         }
+
         $this->getResponse()->setBody(Mage::helper('core')->jsonEncode($result));
     }
 

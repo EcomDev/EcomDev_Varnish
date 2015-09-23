@@ -10,7 +10,7 @@
  *
  * @category   EcomDev
  * @package    EcomDev_Varnish
- * @copyright  Copyright (c) 2014 EcomDev BV (http://www.ecomdev.org)
+ * @copyright  Copyright (c) 2015 EcomDev BV (http://www.ecomdev.org)
  * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  * @author     Ivan Chepurnyi <ivan.chepurnyi@ecomdev.org>
  */
@@ -278,9 +278,9 @@ Object.extend(EcomDev.Varnish.Esi, {
 });
 
 EcomDev.Varnish.Url = Class.create({
-    initialize: function () {
-        this.url = window.location.search;
-        this.query = window.location.search;
+    initialize: function (url, query) {
+        this.url = url;
+        this.query = query;
         this.params = $H({});
         this.parse();
     },
@@ -309,7 +309,7 @@ EcomDev.Varnish.Url = Class.create({
             
             query += encodeURIComponent(pair.key) + '=' + encodeURIComponent(pair.value);
         });
-        var url = window.location.pathname;
+        var url = this.url;
         if (query.length > 0) {
             url += '?' + query;
         } 
@@ -317,7 +317,78 @@ EcomDev.Varnish.Url = Class.create({
     }
 });
 
-EcomDev.Varnish.currentUrl = new EcomDev.Varnish.Url();
+/**
+ * Token class for form key validation
+ *
+ * It is used to validate form key validator
+ */
+EcomDev.Varnish.Token = Class.create({
+    initialize: function (config) {
+        if (!Object.isArray(config.observedCssRules)) {
+            config.observedCssRules = [config.observedCssRules];
+        }
+
+        this.urlKeyParam = config.urlKeyParam;
+        this.cookieName = config.cookieName;
+        this.requestUrl = config.requestUrl;
+        this.observedCssRules = config.observedCssRules;
+        this.inputFieldName = config.inputFieldName;
+        this.overrideSetLocation();
+        this.requireTokenValue();
+    },
+    overrideSetLocation: function () {
+        if (window.setLocation && !window.EcomDevOriginalSetLocation) {
+            window.EcomDevOriginalSetLocation = window.setLocation;
+            window.setLocation = this.setLocation.bind(this);
+        }
+    },
+    getTokenValue: function () {
+        return Mage.Cookies.get(this.cookieName);
+    },
+    requireTokenValue: function () {
+        var require = false;
+        for (var i = 0; i < this.observedCssRules.length; i++) {
+            if ($$(this.observedCssRules[i]).length) {
+                require = true;
+            }
+        }
+
+        if (document.getElementsByName(this.inputFieldName).length) {
+            require = true;
+        }
+
+        if (require) {
+            if (this.getTokenValue()) {
+                this.updateFormFields();
+            } else {
+                new Ajax.Request(
+                    this.requestUrl, {
+                        method: 'post',
+                        onComplete: this.updateFormFields.bind(this)
+                    }
+                );
+            }
+        }
+    },
+    updateFormFields: function () {
+        var formFields = document.getElementsByName(this.inputFieldName);
+        for (var i = 0; i < formFields.length; i ++) {
+            formFields[i].value = this.getTokenValue();
+        }
+    },
+    setLocation: function (url) {
+        if (url.match('/' + this.urlKeyParam) + '/') {
+            url = url.replace(
+                new RegExp('/' + RegExp.escape(this.urlKeyParam) + '/[^/]/', 'g'),
+                '/' + this.urlKeyParam + '/' + this.getTokenValue() + '/'
+            );
+        }
+
+        window.EcomDevOriginalSetLocation(url);
+    }
+});
+
+EcomDev.Varnish.currentUrl = new EcomDev.Varnish.Url(window.location.pathname, window.location.search);
 
 Object.extend(EcomDev.Varnish, {
     onDomReady: function () {

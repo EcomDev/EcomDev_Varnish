@@ -1,0 +1,435 @@
+<?php
+/** @var $this EcomDev_Varnish_Block_Vcl_Config */
+$_probeUrl = $this->getConfig()->getProbeUrl();
+$_hasProbe = !empty($_probeUrl);
+$_balancedBackendList = $this->getConfig()->getBalancedBackendList();
+$_backendList = $this->getConfig()->getBackendList();
+$_isProbeRequest = false;
+if ($_hasProbe && strpos($this->getConfig()->getProbeUrl(), '://')):
+    $_isProbeRequest = true;
+    $_probeHost = (string)parse_url($_probeUrl, PHP_URL_HOST);
+    $_probePath = (string)parse_url($_probeUrl, PHP_URL_PATH);
+endif;
+?>
+import std;
+import header;
+import cookie;
+import ipcast;
+import querystring;
+
+<?php if ($this->getConfig()->getDeviceDetectLibraryPath()): ?>
+include "<?php echo $this->getConfig()->getDeviceDetectLibraryPath();?>";
+<?php endif; ?>
+
+# Varnish load balancer configuration
+<?php if ($_hasProbe):?>
+probe healthcheck {
+<?php if ($_isProbeRequest):?>
+    .request =
+        "GET <?php echo $_probePath;?> HTTP/1.0"
+        "Host: <?php echo $_probeHost;?>"
+        "Connection: close";
+<?php else: ?>
+    .url = "<?php echo $this->getConfig()->getProbeUrl();?>";
+<?php endif;?>
+
+    .interval = <?php echo $this->getConfig()->getProbeOption('interval', '30s');?>;
+    .timeout = <?php echo $this->getConfig()->getProbeOption('timeout', '0.3s');?>;
+    .window = <?php echo $this->getConfig()->getProbeOption('window', '8');?>;
+    .threshold = <?php echo $this->getConfig()->getProbeOption('threshold', '3');?>;
+    .initial = <?php echo $this->getConfig()->getProbeOption('initial', '3');?>;
+    .expected_response = <?php echo $this->getConfig()->getProbeOption('expected_response', '200');?>;
+}
+<?php endif; ?>
+
+<?php foreach ($_backendList as $_name => $_pair): ?>
+<?php list ($_ip, $_port) = $_pair; ?>
+backend <?php echo $_name; ?> {
+    .host = "<?php echo $_ip;?>";
+    .port = "<?php echo $_port;?>";
+<?php if ($_hasProbe && in_array($_name, $_balancedBackendList, true)):?>
+    .probe = healthcheck;
+<?php endif; ?>
+    .first_byte_timeout = <?php echo $this->getConfig()->getBackendOption($_name, 'first_byte_timeout', '30s');?>;
+    .connect_timeout = <?php echo $this->getConfig()->getBackendOption($_name, 'connect_timeout', '5s');?>;
+    .between_bytes_timeout = <?php echo $this->getConfig()->getBackendOption($_name, 'between_bytes_timeout', '2s');?>;
+}
+<?php endforeach; ?>
+
+<?php if (count($_balancedBackendList) > 1): ?>
+director balancer <?php echo $this->getConfig()->getDirectorType(); ?> {
+    <?php foreach ($_balancedBackendList as $_backendName): ?>
+    {
+      .backend = <?php echo $_backendName;?>;
+      .weight = 1;
+    }
+    <?php endforeach;?>
+}
+<?php $_directorName = 'balancer';?>
+<?php else: ?>
+<?php $_directorName = !empty($_balancedBackendList) ? current($_balancedBackendList) : key($_backendList);?>
+<?php endif; ?>
+
+# Acls for allowing refresh from a browser
+acl allow_refresh {
+<?php foreach($this->getConfig()->getRefreshIps() as $_ip):?>
+   <?php echo (is_array($_ip) ? sprintf('"%s"/%s', $_ip[0], $_ip[1]) : sprintf('"%s"', $_ip));?>;
+<?php endforeach; ?>
+}
+
+# Acls for trust in
+acl is_local {
+   "127.0.0.1";
+   "localhost";
+<?php foreach($this->getConfig()->getLocalIps() as $_ip):?>
+    <?php echo (is_array($_ip) ? sprintf('"%s"/%s', $_ip[0], $_ip[1]) : sprintf('"%s"', $_ip));?>;
+<?php endforeach; ?>
+}
+
+# Admin detection. Used to find out when special backend to use for admin connections.
+sub detect_admin {
+    unset req.http.X-Admin-Match;
+
+    if (req.url ~ "^(/index.php)?/<?php echo $this->getConfig()->getAdminPath();?>") {
+        set req.http.X-Admin-Match = "1";
+    }
+}
+
+# Custom functions
+sub normalize_url {
+    <?php if ($this->getConfig()->getCookieWhitelist()):?>
+    if (req.url ~ "(\?|&)(<?php echo implode('|', $this->getConfig()->getUrlQueryBlacklist());?>)=") {
+        # Some generic URL manipulation, useful for high hit ratio, e.g. removing all those track parameters
+        set req.url = querystring.regfilter(req.url, "<?php echo implode('|', $this->getConfig()->getUrlQueryBlacklist());?>");
+    }
+    <?php endif; ?>
+
+    # Strip a trailing ? if it exists
+    if (req.url ~ "\?$") {
+        set req.url = regsub(req.url, "\?$", "");
+    } else {
+        set req.url = querystring.sort(req.url);
+    }
+}
+
+sub normalize_cookie {
+    <?php if ($this->getConfig()->getCookieWhitelist()):?>
+    cookie.filter_except("<?php echo implode(',', $this->getConfig()->getCookieWhitelist());?>");
+    <?php endif; ?>
+
+    set req.http.cookie = cookie.get_string();
+
+    # Are there cookies left with only spaces or that are empty?
+    if (req.http.cookie ~ "^\s*$") {
+        remove req.http.cookie;
+    }
+}
+
+sub normalize_gzip_ua {
+    # Normalize Accept-Encoding header
+    # straight from the manual: https://www.varnish-cache.org/docs/3.0/tutorial/vary.html
+    if (req.http.Accept-Encoding) {
+        if (req.url ~ "\.(jpg|png|gif|gz|tgz|bz2|tbz|mp3|ogg)$") {
+            # No point in compressing these
+            remove req.http.Accept-Encoding;
+        } elsif (req.http.Accept-Encoding ~ "gzip") {
+            set req.http.Accept-Encoding = "gzip";
+        } elsif (req.http.Accept-Encoding ~ "deflate") {
+            set req.http.Accept-Encoding = "deflate";
+        } else {
+            # unkown algorithm
+            remove req.http.Accept-Encoding;
+        }
+    }
+
+    if (req.http.User-Agent ~ "(?i)(ads|google|bing|msn|yandex|baidu|ro|career|)bot" ||
+        req.http.User-Agent ~ "(?i)(baidu|jike|symantec)spider" ||
+        req.http.User-Agent ~ "(?i)(facebook|scanner)" ||
+        req.http.User-Agent ~ "(?i)(web)crawler") {
+        set req.http.X-UA-Device = "bot";
+    }
+
+    set req.http.User-Agent = req.http.User-Agent + " " + req.http.X-UA-Device;
+}
+
+sub normalize_customer_segment {
+    unset req.http.X-Cache-Segment;
+
+    if(cookie.isset("segment_checksum")) {
+        set req.http.X-Cache-Segment = cookie.get("segment_checksum");
+        if (req.http.X-Cache-Segment) {
+            set client.identity = client.identity + req.http.X-Cache-Segment;
+        }
+    }
+}
+
+sub normalize_ip_address {
+    if (req.http.<?php echo $this->getConfig()->getIpHeader();?>) {
+        set req.http.<?php echo $this->getConfig()->getIpHeader();?> = regsub(req.http.<?php echo $this->getConfig()->getIpHeader();?>, "^(^[^,]+),?.*$", "\1");
+        if (ipcast.ip(req.http.<?php echo $this->getConfig()->getIpHeader();?>, "127.0.0.1") == "127.0.0.1" ) {
+            error 400 "Bad request";
+        }
+
+        if (client.ip !~ is_local) {
+            unset req.http.<?php echo $this->getConfig()->getIpHeader();?>;
+        }
+    }
+}
+
+# Handle the HTTP request received by the client
+sub vcl_recv {
+    # shortcut for DFind requests
+    if (req.url ~ "^/w00tw00t") {
+        error 404 "Not Found";
+    }
+
+    cookie.parse(req.http.cookie);
+    call detect_admin;
+
+    set client.identity = req.http.User-Agent + " " + client.ip;
+
+    call normalize_url;
+    call normalize_customer_segment;
+    call normalize_cookie;
+    call normalize_ip_address;
+
+<?php if ($this->getConfig()->getDeviceDetectLibraryPath()): ?>
+    call devicedetect;
+<?php endif;?>
+
+    call normalize_gzip_ua;
+
+    # Send Surrogate-Capability headers to announce ESI support to backend
+    set req.http.Surrogate-Capability = "key=ESI/1.0";
+
+    if (req.http.X-Admin-Match) {
+        set req.backend = <?php echo $this->getConfig()->getAdminBackend();?>;
+        unset req.http.X-Admin-Match;
+        return (pass);
+    } else {
+        set req.backend = <?php echo $_directorName; ?>;
+    }
+
+    if (req.http.<?php echo $this->getConfig()->getOffloadHeader();?> && client.ip !~ is_local) {
+        unset req.http.<?php echo $this->getConfig()->getOffloadHeader();?>;
+    }
+
+    if (req.restarts == 0) {
+        if (client.ip !~ is_local) {
+            set req.http.<?php echo $this->getConfig()->getIpHeader();?> = client.ip;
+        }
+    }
+
+    set req.http.Host = regsub(req.http.Host, ":[0-9]+", "");
+
+    if (req.http.Cache-Control ~ "no-cache"
+        && client.ip ~ is_local
+        && req.http.<?php echo $this->getConfig()->getIpHeader();?>
+        && ipcast.ip(req.http.<?php echo $this->getConfig()->getIpHeader();?>, "127.0.0.1") ~ allow_refresh ) {
+        set req.hash_always_miss = true;
+    } else if (req.http.Cache-Control ~ "no-cache" && client.ip !~ is_local && client.ip ~ allow_refresh) {
+        set req.hash_always_miss = true;
+    }
+
+    # Only deal with "normal" types
+    if (req.request != "GET" &&
+            req.request != "HEAD" &&
+            req.request != "PUT" &&
+            req.request != "POST" &&
+            req.request != "TRACE" &&
+            req.request != "OPTIONS" &&
+            req.request != "PATCH" &&
+            req.request != "DELETE") {
+        /* Non-RFC2616 or CONNECT which is weird. */
+        return (pipe);
+    }
+
+    # Large static files should be piped, so they are delivered directly to the end-user without
+    # waiting for Varnish to fully read the file first.
+    if (req.url ~ "^[^?]*\.(mp[34]|rar|tar|tgz|gz|wav|zip|pdf|rtf|bz2|flv|png|jpeg|jpg|doc|bmp)(\?.*)?$") {
+        return (pipe);
+    }
+
+    # Do not cache requests that are not cachable. Cache only GET, HEAD and OPTIONS
+    if (req.request != "GET" && req.request != "HEAD" && req.request != "OPTIONS") {
+        return (pass);
+    }
+
+    # Remove all cookies for static files that can be cached
+    if (req.url ~ "^[^?]*\.(css|eot|svg|gif|ico|js|less|swf|txt|woff|xml|css\.map)(\?.*)?$") {
+        unset req.http.Cookie;
+    }
+
+    if (req.backend.healthy) {
+        set req.grace = 5m;
+    } else {
+        set req.grace = <?php echo $this->getConfig()->getGracePeriod();?>;
+    }
+
+    return (lookup);
+}
+
+# The data on which the hashing will take place
+sub vcl_hash {
+    hash_data(req.url);
+
+    if (req.http.host) {
+        hash_data(req.http.host);
+    } else {
+        hash_data(server.ip);
+    }
+
+    <?php if($this->getConfig()->getDeviceDetectLibraryPath()):?>
+    # hash device for request
+    if (req.http.X-UA-Device) {
+        hash_data(req.http.X-UA-Device);
+    }
+    <?php endif; ?>
+
+    if (req.http.<?php echo $this->getConfig()->getOffloadHeader();?>) {
+        hash_data(req.http.<?php echo $this->getConfig()->getOffloadHeader();?>);
+    }
+
+    if (req.http.X-Requested-With) {
+        hash_data(req.http.X-Requested-With);
+    }
+
+    if (req.http.X-Cache-Segment) {
+        hash_data(req.http.X-Cache-Segment);
+    }
+
+    # Add authorization as cache key,
+    # in order to make possible checking staging environments
+    if (req.http.Authorization) {
+        hash_data(req.http.Authorization);
+    }
+
+    return (hash);
+}
+
+# Unsets accept-encoding in order to process gzip by ourselves
+sub vcl_miss {
+    unset bereq.http.accept-encoding;
+}
+
+# Handle the HTTP request coming from our backend
+sub vcl_fetch {
+    # Parse ESI request and remove Surrogate-Control header
+    if (beresp.http.Surrogate-Control ~ "ESI/1.0") {
+        set beresp.do_esi = true;
+    }
+
+    # Enable gzip compression, if header for it is specified
+    if (beresp.http.X-Cache-Gzip) {
+        remove beresp.http.X-Cache-Gzip;
+        set beresp.do_gzip = true;
+    }
+
+    # Sometimes, a 301 or 302 redirect formed via Apache's mod_rewrite can mess with the HTTP port that is being passed along.
+    # This often happens with simple rewrite rules in a scenario where Varnish runs on :80 and Apache on :8080 on the same box.
+    # A redirect can then often redirect the end-user to a URL on :8080, where it should be :80.
+    # This may need finetuning on your setup.
+    #
+    # To prevent accidental replace, we only filter the 301/302 redirects for now.
+    if (beresp.status == 301 || beresp.status == 302) {
+        set beresp.http.Location = regsub(beresp.http.Location, ":[0-9]+", "");
+        set beresp.ttl = 30s;
+        return (hit_for_pass);
+    }
+
+    # Make 404 page being cached for 30 seconds to prevent backend load
+    if (beresp.status == 404) {
+        set beresp.ttl = 30s;
+        return (deliver);
+    }
+
+    # Hit-for-pass for auth and request erors for 5s
+    if (beresp.status > 400 && beresp.status < 500) {
+        set beresp.ttl = 5s;
+        return (hit_for_pass);
+    }
+
+    # Hit-for-pass auth for backend errors, without ttl and grace definition
+    if (beresp.status >= 500 && beresp.status < 600) {
+        set beresp.ttl = 0s;
+        set beresp.grace = 0s;
+        return (hit_for_pass);
+    }
+
+    set beresp.http.X-UA-Device = req.http.X-UA-Device;
+
+    if (!beresp.http.X-Cache-Segment) {
+        set beresp.http.X-Cache-Segment = req.http.X-Cache-Segment;
+    }
+
+    # Cache all static files that are small by nature
+    if (req.url ~ "^[^?]*\.(css|svg|eot|gif|ico|js|less|txt|woff|xml|css\.map)(\?.*)?$") {
+        set beresp.ttl = 5h;
+        set beresp.grace = <?php echo $this->getConfig()->getGracePeriod();?>;
+        unset beresp.http.Set-Cookie;
+
+        # Compress text based static files
+        if (req.url ~ "^[^?]*\.(css|svg|js|less|txt|xml|css\.map)(\?.*)?$") {
+            set beresp.do_gzip = true;
+        }
+
+        return (deliver);
+    }
+
+    if (beresp.http.X-Cache-Ttl) {
+        set beresp.ttl = std.duration(beresp.http.X-Cache-Ttl, 0s);
+        set beresp.grace = <?php echo $this->getConfig()->getGracePeriod();?>;
+        unset beresp.http.Set-Cookie;
+    } else {
+        set beresp.ttl = 0s;
+        return (hit_for_pass);
+    }
+
+    return (deliver);
+}
+
+# The routine when we deliver the HTTP request to the user
+# Last chance to modify headers that are sent to the client
+sub vcl_deliver {
+    if (obj.hits > 0) {
+        set resp.http.X-Cache = "cached";
+    } else {
+        set resp.http.X-Cache = "uncached";
+    }
+
+    header.remove(resp.http.Set-Cookie, "segment_checksum=;");
+    header.remove(resp.http.Set-Cookie, "store=;");
+
+    if (resp.http.X-Cache-Segment ~ "^.+$"
+        && (!cookie.isset("segment_checksum") || cookie.get("segment_checksum") != resp.http.X-Cache-Segment)
+        && !header.get(resp.http.Set-Cookie, "segment_checksum=")) {
+        header.append(resp.http.Set-Cookie, "segment_checksum=" + resp.http.X-Cache-Segment + "; Domain=." + req.http.Host + "; Path=/");
+    }
+
+    if (resp.http.X-Cache-Store ~ "^.+$"
+        && (!cookie.isset("store") || cookie.get("store") != resp.http.X-Cache-Store)
+        && !header.get(resp.http.Set-Cookie, "store=")) {
+        header.append(resp.http.Set-Cookie, "store=" + resp.http.X-Cache-Store + "; Domain=." + req.http.Host + "; Path=/; HttpOnly");
+    }
+
+    # Remove debug headers if ip address is not whitelisted
+    if (client.ip ~ is_local && ipcast.ip(req.http.<?php echo $this->getConfig()->getIpHeader();?>, "127.0.0.1") !~ allow_refresh) {
+        remove resp.http.X-Debug;
+        remove resp.http.X-Varnish;
+        remove resp.http.X-Cache;
+    }
+
+    # Remove headers that should be removed when there is no debug enabled
+    if (!resp.http.X-Debug) {
+        remove resp.http.X-UA-Device;
+        remove resp.http.X-Cache-Segment;
+        remove resp.http.X-Cache-Objects;
+        remove resp.http.<?php echo $this->getConfig()->getOffloadHeader();?>;
+        remove resp.http.X-Powered-By;
+        remove resp.http.Server;
+        remove resp.http.Via;
+        remove resp.http.Link;
+    }
+
+    return (deliver);
+}

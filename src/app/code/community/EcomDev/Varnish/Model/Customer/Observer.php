@@ -90,9 +90,11 @@ class EcomDev_Varnish_Model_Customer_Observer
      */
     public function unsetLoginCookie()
     {
+        $segment = $this->_getHelper()->getCustomerSegment();
+        $segment['customer_group_id'] = 0;
         $this->setCookies(array(
             self::COOKIE_CART => $this->_hashData(Varien_Date::now()),
-            self::COOKIE_SEGMENT => 0,
+            self::COOKIE_SEGMENT => $this->_hashData($segment),
             self::COOKIE_CUSTOMER => $this->_hashData(Varien_Date::now()),
             self::COOKIE_IS_LOGGED_IN => 0
         ));

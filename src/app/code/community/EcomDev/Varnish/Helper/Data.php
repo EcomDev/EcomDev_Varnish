@@ -30,7 +30,13 @@ class EcomDev_Varnish_Helper_Data extends Mage_Core_Helper_Abstract
     const HEADER_OBJECTS = 'X-Cache-Objects';
     const HEADER_SEGMENT = 'X-Cache-Segment';
     const HEADER_STORE = 'X-Cache-Store';
-    const HEADER_OBJECTS_ITEMS = 20;
+    const HEADER_GZIP = 'X-Cache-Gzip';
+
+    const HEADER_OBJECTS_ITEMS = 100;
+
+    const COOKIE_TOKEN = 'varnish_token';
+    const COOKIE_TOKEN_CHECKSUM = 'varnish_token_checksum';
+
     const OBJECT_TAG_FORMAT = ':%s:';
     
     const XML_PATH_ALLOWED_PAGES = 'varnish/pages';
@@ -38,6 +44,10 @@ class EcomDev_Varnish_Helper_Data extends Mage_Core_Helper_Abstract
     const XML_PATH_PAGE_TTL = 'varnish/pages/%s_time';
     const XML_PATH_ACTIVE = 'varnish/settings/active';
     const XML_PATH_ESI_KEY = 'varnish/settings/esi_key';
+    const XML_PATH_SEGMENT_STORE = 'varnish/settings/store_segment';
+    const XML_PATH_SEGMENT_CUSTOMER_GROUP = 'varnish/settings/customer_group_segment';
+    const XML_PATH_SEGMENT_CURRENCY = 'varnish/settings/currency_segment';
+    const XML_PATH_GZIP = 'varnish/settings/gzip';
     const XML_PATH_DEBUG = 'varnish/settings/debug';
     
     /**
@@ -121,10 +131,9 @@ class EcomDev_Varnish_Helper_Data extends Mage_Core_Helper_Abstract
     public function getAjaxReloadUrl()
     {
         if ($this->_ajaxReloadUrl === null) {
-            $this->_ajaxReloadUrl = parse_url(
-                $this->_getUrl('varnish/ajax/reload'), 
-                PHP_URL_PATH
-            );
+            $this->_ajaxReloadUrl = $this->_getUrl('varnish/ajax/reload', array(
+                '_secure' => Mage::app()->getStore()->isCurrentlySecure()
+            ));
         }
         
         return $this->_ajaxReloadUrl;
@@ -145,15 +154,15 @@ class EcomDev_Varnish_Helper_Data extends Mage_Core_Helper_Abstract
      * 
      * @return $this
      */
-    protected function _initDefaultVarnishHeaders()
+    protected function _initDefaultVarnishHeaders($withoutTags)
     {
         // Add TTL header if any of them have been specified
-        if ($this->_ttlList) {
+        if (!$withoutTags && $this->_ttlList) {
             $this->setVarnishHeader(self::HEADER_TTL, min($this->_ttlList) . 's');
         }
 
         // Add object tags header only if it is not added
-        if ($this->_objectTags && !$this->hasVarnishHeader(self::HEADER_OBJECTS)) {
+        if (!$withoutTags && $this->_objectTags && !$this->hasVarnishHeader(self::HEADER_OBJECTS)) {
             $objects = array_map(
                 array($this, 'formatObjectTag'),
                 $this->_objectTags
@@ -178,7 +187,12 @@ class EcomDev_Varnish_Helper_Data extends Mage_Core_Helper_Abstract
         if (!$this->hasVarnishHeader(self::HEADER_STORE)) {
             $this->setVarnishHeader(self::HEADER_STORE, Mage::app()->getStore()->getCode());
         }
-        
+
+        if (Mage::getStoreConfigFlag(self::XML_PATH_GZIP)
+            && !$this->hasVarnishHeader(self::HEADER_GZIP)) {
+            $this->setVarnishHeader(self::HEADER_GZIP, '1');
+        }
+
         return $this;
     }
 
@@ -250,12 +264,13 @@ class EcomDev_Varnish_Helper_Data extends Mage_Core_Helper_Abstract
     
     /**
      * Returns list of varnish headers
-     * 
+     *
+     * @param bool $withoutTags
      * @return array[]
      */
-    public function getVarnishHeaders()
+    public function getVarnishHeaders($withoutTags = false)
     {
-        $this->_initDefaultVarnishHeaders();
+        $this->_initDefaultVarnishHeaders($withoutTags);
         return $this->_varnishHeaders;
     }
 
@@ -578,11 +593,42 @@ class EcomDev_Varnish_Helper_Data extends Mage_Core_Helper_Abstract
     public function getCustomerSegment()
     {
         $segment = new Varien_Object();
-        $segment->setCustomerGroupId(Mage::getSingleton('customer/session')->getCustomerGroupId());
-        $segment->setStoreId(Mage::app()->getStore()->getId());
+
+        $segmentValues = $this->_getSegmentValues();
+
+        foreach ($segmentValues as $field => $configCallbackPair) {
+            if (is_array($configCallbackPair) && Mage::getStoreConfigFlag($configCallbackPair[0])) {
+                $segment->setData($field, $configCallbackPair[1]());
+            } elseif (is_string($configCallbackPair)) {
+                $segment->setData($field, $configCallbackPair);
+            }
+        }
+
         Mage::dispatchEvent('ecomdev_varnish_customer_segment', array('segment' => $segment));
         
         return $segment->getData();
+    }
+
+    /**
+     * Returns list of segment values callbacks
+     *
+     * If array key is a string, than value added directly
+     *
+     * @return array
+     */
+    protected function _getSegmentValues()
+    {
+        return array(
+            'customer_group_id' => array(self::XML_PATH_SEGMENT_CUSTOMER_GROUP, function () {
+                return Mage::getSingleton('customer/session')->getCustomerGroupId();
+            }),
+            'store_id' => array(self::XML_PATH_SEGMENT_CUSTOMER_GROUP, function () {
+                return Mage::app()->getStore()->getId();
+            }),
+            'currency' => array(self::XML_PATH_SEGMENT_CURRENCY, function () {
+                return Mage::app()->getStore()->getCurrentCurrencyCode();
+            })
+        );
     }
 
     /**
@@ -595,7 +641,7 @@ class EcomDev_Varnish_Helper_Data extends Mage_Core_Helper_Abstract
     public function hashData($hashData, $addDeviceType = true)
     {
         if (is_array($hashData)) {
-            $hashData = serialize($hashData);
+            $hashData = json_encode($hashData);
         }
 
         if ($addDeviceType) {
@@ -629,5 +675,63 @@ class EcomDev_Varnish_Helper_Data extends Mage_Core_Helper_Abstract
         
         return $helper->$method();
     }
-    
+
+    /**
+     * Returns checksum for supplied data array
+     *
+     * @param array $data
+     * @return string
+     */
+    public function getChecksum($data)
+    {
+        $data['salt'] = $this->getEsiKey();
+        ksort($data);
+        return md5(json_encode($data));
+    }
+
+    /**
+     * Validates checksum of esi request
+     *
+     * @param array $data
+     * @return bool
+     */
+    public function validateChecksum($data)
+    {
+        if (!isset($data['checksum']) || !$this->getEsiKey()) {
+            return false;
+        }
+
+        $suppliedChecksum = $data['checksum'];
+        unset($data['checksum']);
+        return $suppliedChecksum === $this->getChecksum($data);
+    }
+
+    /**
+     * Generates CSRF token for a user
+     *
+     * @return $this
+     */
+    public function generateToken()
+    {
+        $token = Mage::helper('core')->getRandomString(16);
+        $this->addCookie(self::COOKIE_TOKEN, $token);
+        $this->addCookie(self::COOKIE_TOKEN_CHECKSUM, $this->getChecksum(array('token' => $token)));
+        return $this;
+    }
+
+    /**
+     * Validates a token value
+     *
+     * @param string $token
+     * @return bool
+     */
+    public function validateToken($token)
+    {
+        $tokenChecksum = Mage::getSingleton('ecomdev_varnish/cookie')->get(self::COOKIE_TOKEN_CHECKSUM);
+        if ($tokenChecksum === $this->getChecksum(array('token' => $token))) {
+            return true;
+        }
+
+        return false;
+    }
 }

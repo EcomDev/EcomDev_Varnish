@@ -1,5 +1,5 @@
 <?php 
-/* @var $this EcomDev_Varnish_Block_Esi_Tag */ 
+/** @var $this EcomDev_Varnish_Block_Esi_Tag */
 ?>
 <?php if ($this->helper('ecomdev_varnish')->isDebug()): ?>
 <!-- ESI START URL: <?php echo $this->getBlockUrl();?> -->
@@ -9,7 +9,9 @@
 -->
 <div id="<?php echo $this->getHtmlId();?>"></div>
 <script type="text/javascript">
-new EcomDev.Varnish.Esi(<?php echo $this->getBlockJson();?>);
+ecomdevVarnishScope(function () {
+    new EcomDev.Varnish.Esi(<?php echo $this->getBlockJson();?>);
+});
 </script>
 <!--esi
 </esi:remove>

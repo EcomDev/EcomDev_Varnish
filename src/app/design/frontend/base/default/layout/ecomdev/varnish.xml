@@ -30,7 +30,10 @@
         <reference name="before_body_end">
             <block type="core/template"
                    template="ecomdev/varnish/js/bottom.phtml"
-                   name="varnish.bottom.js" />
+                   name="varnish.bottom.js"/>
+            <block type="ecomdev_varnish/js_token"
+                   template="ecomdev/varnish/js/token.phtml"
+                   name="varnish.token.js"/>
         </reference>
     </default>
 </layout>

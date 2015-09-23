@@ -2,10 +2,12 @@
 <?php echo $this->getChildHtml('', false);?>
 </div>
 <script type="text/javascript">
-new EcomDev.Varnish.AjaxBlock({
-    container: '<?php echo $this->getWrapperId();?>',
-    block: '<?php echo $this->getBlockName();?>',
-    cookie: '<?php echo $this->getCookie();?>',
-    callback: <?php echo $this->getCallback() ? $this->getCallback() : 'false' ?>
+ecomdevVarnishScope(function () {
+    new EcomDev.Varnish.AjaxBlock({
+        container: '<?php echo $this->getWrapperId();?>',
+        block: '<?php echo $this->getBlockName();?>',
+        cookie: '<?php echo $this->getCookie();?>',
+        callback: <?php echo $this->getCallback() ? $this->getCallback() : 'false' ?>
+    });
 });
 </script>
