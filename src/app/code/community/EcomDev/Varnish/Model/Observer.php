@@ -232,10 +232,6 @@ class EcomDev_Varnish_Model_Observer
             $this->_addCookies()
                 ->_addResponseHeaders($controllerAction);
         }
-
-
-        Mage::log(print_r($controllerAction->getRequest(), true), Zend_Log::DEBUG, '', true);
-        Mage::log(print_r($controllerAction->getResponse(), true), Zend_Log::DEBUG, '', true);
         
         $this->performBan();
         return $this;
