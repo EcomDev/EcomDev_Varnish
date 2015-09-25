@@ -40,6 +40,15 @@ class EcomDev_Varnish_EsiController extends Mage_Core_Controller_Front_Action
         Mage::app()->setUseSessionInUrl(false);
 
         $params = $this->getRequest()->getParams();
+
+        // Remove redundant non intended params for queries
+        foreach ($this->getRequest()->getQuery() as $queryParam => $value) {
+            if (strpos($queryParam, '__') === 0 && isset($params[$queryParam])) {
+                unset($params[$queryParam]);
+            }
+        }
+
+
         $requiredParams = array(
             'handles', 'package', 'theme', 'checksum'
         );
@@ -48,7 +57,6 @@ class EcomDev_Varnish_EsiController extends Mage_Core_Controller_Front_Action
             || empty($params['handles'])
             || !Mage::helper('ecomdev_varnish')->validateChecksum($params)) {
             // Output empty screen if parameters are not valid
-            print_r($params);
             $this->getResponse()->setHttpResponseCode(404);
             $this->getResponse()->setBody('Invalid ESI configuration');
             return;
