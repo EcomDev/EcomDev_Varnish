@@ -2,7 +2,8 @@
     "name": "ecomdev/magento-varnish",
     "type": "magento-module",
     "description": "Varnish Integration framework for Magento",
-	"require": {
+    "license": "OSL-3.0",
+    "require": {
         "magento-hackathon/magento-composer-installer": "*",
         "ride/lib-varnish": "dev-master"
     },
