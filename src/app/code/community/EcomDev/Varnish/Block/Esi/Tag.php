@@ -73,7 +73,7 @@ class EcomDev_Varnish_Block_Esi_Tag extends Mage_Core_Block_Template
         $params = array(
             'handles' => $handles,
             'package' => Mage::getSingleton('core/design_package')->getPackageName(),
-            'theme' => Mage::getSingleton('core/design_package')->getTheme('default'),
+            'theme' => Mage::getSingleton('core/design_package')->getTheme('default') ?: 'default',
             'store' => Mage::app()->getStore()->getCode(),
             'block' => $this->getBlockName()
         );
