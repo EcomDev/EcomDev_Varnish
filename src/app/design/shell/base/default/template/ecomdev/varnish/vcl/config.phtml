@@ -260,11 +260,8 @@ sub vcl_recv {
         unset req.http.Cookie;
     }
 
-    if (req.backend.healthy) {
-        set req.grace = 5m;
-    } else {
-        set req.grace = <?php echo $this->getConfig()->getGracePeriod();?>;
-    }
+
+    set req.grace = <?php echo $this->getConfig()->getGracePeriod();?>;
 
     return (lookup);
 }
