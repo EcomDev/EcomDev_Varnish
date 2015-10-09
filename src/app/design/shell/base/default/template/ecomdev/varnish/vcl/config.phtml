@@ -304,12 +304,16 @@ sub vcl_hash {
         hash_data(req.http.Authorization);
     }
 
+    set req.http.X-External-Gzip = 1;
+
     return (hash);
 }
 
 # Unsets accept-encoding in order to process gzip by ourselves
 sub vcl_miss {
-    unset bereq.http.accept-encoding;
+    if (req.http.X-External-Gzip) {
+        unset bereq.http.Accept-Encoding;
+    }
 }
 
 # Handle the HTTP request coming from our backend
