@@ -79,7 +79,15 @@ class EcomDev_Varnish_Block_Esi_Tag extends Mage_Core_Block_Template
         );
 
         if ($this->getTtl()) {
-            $params['ttl'] = $this->getTtl();
+            $params['ttl'] = (string)$this->getTtl();
+        }
+
+        if ($this->hasData('referrer') && !$this->getData('referrer')) {
+            $params['filter_referrer'] = '1';
+        }
+
+        if ($this->hasData('cookies') && !$this->getData('cookies')) {
+            $params['filter_cookies'] = '1';
         }
 
         $params['checksum'] = Mage::helper('ecomdev_varnish')->getChecksum($params);
@@ -98,7 +106,12 @@ class EcomDev_Varnish_Block_Esi_Tag extends Mage_Core_Block_Template
         
         return parent::_beforeToHtml();
     }
-    
+
+    /**
+     * Returns block json
+     *
+     * @return string[]
+     */
     public function getBlockJson()
     {
         $result = array(

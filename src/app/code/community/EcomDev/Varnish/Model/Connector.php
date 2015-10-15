@@ -29,6 +29,7 @@ class EcomDev_Varnish_Model_Connector
 {
     const XML_PATH_VARNISH_SERVER = 'varnish/settings/server';
     const XML_PATH_VARNISH_SECRET = 'varnish/settings/secret';
+    const XML_PATH_VARNISH_SECRET_NEWLINE = 'varnish/settings/secret_newline';
 
     const HEADER_OBJECTS = EcomDev_Varnish_Helper_Data::HEADER_OBJECTS;
 
@@ -75,14 +76,18 @@ class EcomDev_Varnish_Model_Connector
         $this->pool = new VarnishPool();
 
         $addresses =  Mage::getStoreConfig(self::XML_PATH_VARNISH_SERVER);
-        $secret = Mage::getStoreConfig(self::XML_PATH_VARNISH_SECRET) . "\n";
+        $secret = Mage::getStoreConfig(self::XML_PATH_VARNISH_SECRET);
+
+        if (Mage::getStoreConfigFlag(self::XML_PATH_VARNISH_SECRET_NEWLINE)) {
+            $secret .= "\n";
+        }
         
         $lines = explode("\n", $addresses);
         $instantiated = array();
         foreach ($lines as $line) {
             $line = trim($line);
             
-            if (!preg_match('/^[a-z0-9\.]+:\d+$/', $line) 
+            if (!preg_match('/^[a-z0-9_\-\.]+:\d+$/', $line)
                 || isset($instantiated[$line])) {
                 continue;
             }

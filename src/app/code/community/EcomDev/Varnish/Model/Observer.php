@@ -153,7 +153,8 @@ class EcomDev_Varnish_Model_Observer
      */
     protected function _addCookies()
     {
-        Mage::getSingleton('ecomdev_varnish/cookie')->apply();        
+        Mage::getSingleton('ecomdev_varnish/message')->apply();
+        Mage::getSingleton('ecomdev_varnish/cookie')->apply();
         return $this;
     }
     
@@ -229,8 +230,11 @@ class EcomDev_Varnish_Model_Observer
 
         if (!Mage::app()->getStore()->isAdmin() 
             && $controllerAction->getResponse()->canSendHeaders(false)) {
-            $this->_addCookies()
-                ->_addResponseHeaders($controllerAction);
+            if (!$controllerAction->getRequest()->getHeader('X-Esi-Include')) {
+                $this->_addCookies();
+            }
+
+            $this->_addResponseHeaders($controllerAction);
         }
         
         $this->performBan();
@@ -351,6 +355,30 @@ class EcomDev_Varnish_Model_Observer
     public function modelSaveCommitAfter(Varien_Event_Observer $observer)
     {
         $this->_getProcessor()->afterSave($observer->getObject());
+        return $this;
+    }
+
+    /**
+     * Updates message block
+     *
+     * @param Varien_Event_Observer $observer
+     * @return $this
+     */
+    public function updateMessageBlock(Varien_Event_Observer $observer)
+    {
+        $block = $observer->getBlock();
+        if ($block instanceof Mage_Core_Block_Messages
+            && !($block instanceof EcomDev_Varnish_Block_MessagesInterface)) {
+            if (!$this->_getHelper()->isAllowedCurrentPage()) {
+                return $this;
+            }
+
+            // Add missing core session messages to our message model
+            Mage::getSingleton('ecomdev_varnish/message')->addMessages(
+                $block->getMessages(), 'core/session'
+            );
+        }
+
         return $this;
     }
 }

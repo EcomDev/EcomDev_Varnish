@@ -176,6 +176,31 @@ sub normalize_ip_address {
     }
 }
 
+# Various optimizations for esi component of the system
+sub normalize_esi {
+   # Send Surrogate-Capability headers to announce ESI support to backend
+    set req.http.Surrogate-Capability = "key=ESI/1.0";
+
+    if (req.esi_level > 0) {
+        # Notify Magento that we are performing ESI include call
+        set req.http.X-Esi-Include = 1;
+
+        # If in url we have an instruction to filter cookies in url
+        if (req.url ~ "/filter_cookies/1/") {
+            unset req.http.Cookie;
+
+            # Keep only store and currency cookies of Magento
+            cookie.filter_except("store,currency");
+            set req.http.Cookie = cookie.get_string();
+        }
+
+        # If in url we have an instruction to exclude all cookies from url
+        if (req.url ~ "/filter_referrer/1/") {
+            unset req.http.Referer;
+        }
+    }
+}
+
 # Handle the HTTP request received by the client
 sub vcl_recv {
     # shortcut for DFind requests
@@ -199,8 +224,7 @@ sub vcl_recv {
 
     call normalize_gzip_ua;
 
-    # Send Surrogate-Capability headers to announce ESI support to backend
-    set req.http.Surrogate-Capability = "key=ESI/1.0";
+    call normalize_esi;
 
     if (req.http.X-Admin-Match) {
         set req.backend = <?php echo $this->getConfig()->getAdminBackend();?>;
