@@ -52,7 +52,7 @@ class EcomDev_Varnish_EsiController extends Mage_Core_Controller_Front_Action
             'handles', 'package', 'theme', 'checksum'
         );
 
-        $missingRequired = array_intersect($requiredParams, array_keys($params));
+        $hasRequired = array_intersect($requiredParams, array_keys($params));
         $missingRequired = count($hasRequired) !== count($requiredParams);
 
         if (!$missingRequired
