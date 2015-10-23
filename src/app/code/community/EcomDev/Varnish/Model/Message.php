@@ -10,7 +10,7 @@ class EcomDev_Varnish_Model_Message
      *
      * @var EcomDev_Varnish_Block_MessagesInterface[]
      */
-    protected $messageBlocks = array();
+    protected $messageBlocks = [];
 
     /**
      * Message types
@@ -31,7 +31,7 @@ class EcomDev_Varnish_Model_Message
      *
      * @var string[]
      */
-    protected $scheduledMessages;
+    protected $scheduledMessages = [];
 
     /**
      * Returns message types for varnish cache
