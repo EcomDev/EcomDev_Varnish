@@ -19,7 +19,7 @@ By default, the extension caches the following pages:
 * Cms pages (including home pages)
 
 To add your own page, you need to adjust your config.xml:
-```
+```xml
 <config>
     <varnish>
         <pages>
@@ -40,7 +40,7 @@ For every page you add, you also need to define a TTL.
 If you do not do this, your TTL will be 0 and Varnish will still pass the request.
 
 To add a certain TTL, you need to adjust your config.xml:
-```
+```xml
 <config>
     <default>
         <varnish>
@@ -57,7 +57,7 @@ A collector collects objects on page load and extracts tags from those objects.
 These tags are added to the "X-Cache-Objects" header.
 
 To create a collector, you need to add a new model and you need to adjust your config.xml.
-```
+```php
 <?php
 
 class Your_Module_Model_Collector
@@ -74,7 +74,7 @@ class Your_Module_Model_Collector
     }
 }
 ```
-```
+```xml
 <config>
     <varnish>
         <object>
@@ -92,7 +92,7 @@ class Your_Module_Model_Collector
 A processor hooks to a model save event and adds a list of object tags to the ban queue.
 
 To create a processor, you also need to add a new model and adjust your config.xml.
-```
+```php
 <?php
 
 class Your_Module_Model_Processor
@@ -110,7 +110,7 @@ class Your_Module_Model_Processor
     }
 }
 ```
-```
+```xml
 <config>
     <varnish>
         <object>

@@ -16,6 +16,7 @@ Varnish Installation
 The varnish configuration can be generated using the shell file.
 
 Alternatively, you can use chef cookbook for configuring your varnish environment:
+
 https://github.com/EcomDev/chef-magento_varnish
 
-**More information along with general usage information for the extension can be found in the docs folder.**
+**More information on usage of the extension can be found in the docs folder.**
