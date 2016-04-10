@@ -24,9 +24,7 @@ To add your own page, you need to adjust your config.xml:
     <varnish>
         <pages>
             <page_layout_handle translate="label" module="you_module_name">
-                <label>
-                    Page Name
-                </label>
+                <label>Page Name</label>
             </page_layout_handle>
         </pages>
     </varnish>
@@ -80,9 +78,7 @@ class Your_Module_Model_Collector
     <varnish>
         <object>
             <collectors>
-                <your_object>
-                    your_module/collector
-                </your_object>
+                <your_object>your_module/collector</your_object>
             </collectors>
         </object>
     </varnish>
@@ -116,9 +112,7 @@ class Your_Module_Model_Processor
     <varnish>
         <object>
             <processors>
-                <your_object>
-                    your_module/processor
-                </your_object>
+                <your_object>your_module/processor</your_object>
             </processors>
         </object>
     </varnish>

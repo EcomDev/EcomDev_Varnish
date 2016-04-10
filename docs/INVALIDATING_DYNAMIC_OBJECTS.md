@@ -65,24 +65,16 @@ class Your_Module_Model_Observer
         <block as="dynamicBlockAlias" name="dynamicBlockPlaceholder"
                template="ecomdev/varnish/wrapper/placeholder.phtml" type="core/template">
             <action method="append">
-                <block>
-                    dynamicBlock
-                </block>
+                <block>dynamicBlock</block>
             </action>
             <action method="setBlockName">
-                <block>
-                    dynamicBlock
-                </block>
+                <block>dynamicBlock</block>
             </action>
             <action method="setCookie">
-                <cookie>
-                    dynamic_cookie
-                </cookie>
+                <cookie>dynamic_cookie</cookie>
             </action>
             <action method="setWrapperId">
-                <htmlId>
-                    elementId
-                </htmlId>
+                <htmlId>elementId</htmlId>
             </action>
         </block>
     </reference>
