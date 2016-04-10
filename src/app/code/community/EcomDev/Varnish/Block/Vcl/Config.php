@@ -12,7 +12,7 @@ class EcomDev_Varnish_Block_Vcl_Config
 
     protected function _construct()
     {
-        $this->setTemplate('ecomdev/varnish/vcl/config.phtml');
+        $this->setTemplate('ecomdev/varnish/vcl/v4config.phtml');
     }
 
     /**
