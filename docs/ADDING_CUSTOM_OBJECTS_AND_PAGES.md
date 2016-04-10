@@ -1,4 +1,4 @@
-# Adding Custom Pages
+# Adding custom objects and pages
 To know what page a certain element is in, this extension adds a "X-Cache-Objects" header.
 This header contains tags (TAGNAME + Object ID) that describe the contents of each page.
 This allows the extension to ban by tag instead of url and create a "content aware" banning system.
@@ -68,7 +68,8 @@ class Your_Module_Model_Collector
         'Your_Module_Block_Object'
     );
 
-    public function collect($block) {
+    public function collect($block)
+    {
         // Your logic to retrieve objects
         return $objects;
     }
