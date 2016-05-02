@@ -22,5 +22,33 @@ A config file can be defined with the -c command.
 
 A complete config.json looks like this:
 ```
-ADD CONFIG JSON HERE
+{
+  "backend": {
+    "default_one": {
+      "ip": "YOURIPHERE",
+      "port": "YOURPORTHERE",
+      "balanced": true/false
+    },
+    "admin": {
+      "ip": "YOURADMINIPHERE",
+      "port": "YOURADMINPORTHERE",
+      "admin": true,
+      "first_byte_timeout": "6000s",
+      "connect_timeout": "6000s"
+    }
+  },
+  "default_backend_option": {
+    "first_byte_timeout": "30s",
+    "connect_timeout": "5s",
+    "between_bytes_timeout": "2s"
+  },
+  "probe_url": "YOURURLFORHEALTCHECKHERE",
+  "probe": {
+    "timeout": "0.15s"
+  },
+  "admin_path": "YOURADMINPATHHERE",
+  "offload_header": "Ssl-Offloaded",
+  "refresh_ip": ["YOURREFRESHIP1HERE","YOURREFRESHIP2HERE"],
+  "local_ip": [["YOURLOCALIPHERE"]]
+}
 ```
