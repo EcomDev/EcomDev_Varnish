@@ -1,6 +1,17 @@
+<?php /** @var $this EcomDev_Varnish_Block_Js_Wrapper */ ?>
+<?php if (!$this->getOnlyJs()):?>
 <div id="<?php echo $this->getWrapperId();?>">
 <?php echo $this->getChildHtml('', false);?>
 </div>
+<?php endif;?>
+<?php if ($this->hasBlockJson()):?>
+<script type="text/javascript">
+ecomdevVarnishScope(function () {
+    new EcomDev.Varnish.AjaxBlock(<?php echo $this->getBlockJson();?>);
+});
+</script>
+<?php else: ?>
+<!-- backward compatibility for non json aware block -->
 <script type="text/javascript">
 ecomdevVarnishScope(function () {
     new EcomDev.Varnish.AjaxBlock({
@@ -11,3 +22,4 @@ ecomdevVarnishScope(function () {
     });
 });
 </script>
+<?php endif; ?>

@@ -3,8 +3,8 @@ window.ecomdevVarnishScope = function (action) {
     if (!window.EcomDev || !EcomDev.Varnish) {
         setTimeout(
             function () { window.ecomdevVarnishScope(action); },
-            50
-        )
+            5
+        );
     } else {
         action();
     }
@@ -15,6 +15,8 @@ window.currentPage = <?php
 ?>;
 
 ecomdevVarnishScope(function () {
-    EcomDev.Varnish.AjaxBlock.url = '<?php echo $this->helper('ecomdev_varnish')->getAjaxReloadUrl();?>';
+    EcomDev.Varnish.AjaxBlock.url = <?php echo $this->helper('core')->jsonEncode(
+        $this->helper('ecomdev_varnish')->getAjaxReloadUrl()
+    );?>;
 });
 </script>

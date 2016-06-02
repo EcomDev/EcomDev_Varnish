@@ -92,6 +92,29 @@ class EcomDev_Varnish_AjaxController extends Mage_Core_Controller_Front_Action
     }
 
     /**
+     * Reloads JavaScript blocks
+     *
+     */
+    public function messageAction()
+    {
+        $types = $this->getRequest()->getPost('storage');
+
+        if (!$types) {
+            $this->getResponse()->setBody('');
+            return;
+        }
+
+        $messages = Mage::getSingleton('ecomdev_varnish/message')->getMessages($types);
+        $messageBlock = $this->getLayout()->getMessagesBlock();
+
+        foreach ($messages as $collection) {
+            $messageBlock->addMessages($collection);
+        }
+
+        $this->getResponse()->setBody($messageBlock->getGroupedHtml());
+    }
+
+    /**
      * Do nothing with custom layout handles
      * 
      * @return $this

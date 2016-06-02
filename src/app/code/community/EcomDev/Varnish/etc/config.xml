@@ -112,6 +112,15 @@
                 <cms_block>ecomdev_varnish/processor_cms_block</cms_block>
             </processors>
         </object>
+        <message>
+            <checkout>checkout/session</checkout>
+            <catalog>catalog/session</catalog>
+            <core>core/session</core>
+            <customer>customer/session</customer>
+            <paypal>paypal/session</paypal>
+            <tag>tag/session</tag>
+            <review>review/session</review>
+        </message>
     </varnish>
     <adminhtml>
         <events>
@@ -199,6 +208,14 @@
                     </ecomdev_varnish>
                 </observers>
             </controller_action_layout_load_before>
+            <core_block_abstract_prepare_layout_after>
+                <observers>
+                    <ecomdev_varnish>
+                        <class>ecomdev_varnish/observer</class>
+                        <method>updateMessageBlock</method>
+                    </ecomdev_varnish>
+                </observers>
+            </core_block_abstract_prepare_layout_after>
         </events>
     </frontend>
 
@@ -212,6 +229,7 @@
                 <customer_group_segment>1</customer_group_segment>
                 <currency_segment>0</currency_segment>
                 <server>127.0.0.1:6082</server>
+                <secret_newline>1</secret_newline>
             </settings>
             <pages>
                 <catalog_category_view_time>360</catalog_category_view_time>
@@ -238,7 +256,11 @@
 
     <shell>
         <layout>
-            <updates></updates>
+            <updates>
+                <ecomdev_varnish>
+                    <file>ecomdev/varnish.xml</file>
+                </ecomdev_varnish>
+            </updates>
         </layout>
     </shell>
 

@@ -22,9 +22,10 @@
         <reference name="head">
             <action method="addJs"><file>ecomdev/varnish.js</file></action>
         </reference>
+
         <reference name="after_body_start">
-            <block type="core/template" 
-                   template="ecomdev/varnish/js/top.phtml" 
+            <block type="core/template"
+                   template="ecomdev/varnish/js/top.phtml"
                    name="varnish.top.js" />
         </reference>
         <reference name="before_body_end">
@@ -36,4 +37,14 @@
                    name="varnish.token.js"/>
         </reference>
     </default>
+
+    <default_varnish>
+        <reference name="root">
+            <action method="unsetChild"><block>global_messages</block></action>
+            <action method="unsetChild"><block>messages</block></action>
+
+            <block type="ecomdev_varnish/messages" name="global_messages"/>
+            <block type="ecomdev_varnish/messages" name="messages"/>
+        </reference>
+    </default_varnish>
 </layout>
