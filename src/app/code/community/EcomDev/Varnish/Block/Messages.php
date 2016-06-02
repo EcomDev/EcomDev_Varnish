@@ -104,7 +104,7 @@ class EcomDev_Varnish_Block_Messages
         parent::addStorageType($type);
 
         if (!is_string($type)) {
-            continue;
+            return $this;
         }
 
         foreach ($this->getMessageCollection()->getItems() as $item) {
