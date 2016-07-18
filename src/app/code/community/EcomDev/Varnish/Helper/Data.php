@@ -30,6 +30,7 @@ class EcomDev_Varnish_Helper_Data extends Mage_Core_Helper_Abstract
     const HEADER_OBJECTS = 'X-Cache-Objects';
     const HEADER_SEGMENT = 'X-Cache-Segment';
     const HEADER_STORE = 'X-Cache-Store';
+    const HEADER_COOKIE_DOMAIN = 'X-Cookie-Domain';
     const HEADER_GZIP = 'X-Cache-Gzip';
 
     const HEADER_OBJECTS_ITEMS = 100;
@@ -186,6 +187,12 @@ class EcomDev_Varnish_Helper_Data extends Mage_Core_Helper_Abstract
         
         if (!$this->hasVarnishHeader(self::HEADER_STORE)) {
             $this->setVarnishHeader(self::HEADER_STORE, Mage::app()->getStore()->getCode());
+        }
+
+        if (!$this->hasVarnishHeader(self::HEADER_COOKIE_DOMAIN)) {
+            /** @var Mage_Core_Model_Cookie $cookieModel */
+            $cookieModel = Mage::getSingleton('core/cookie');
+            $this->setVarnishHeader(self::HEADER_COOKIE_DOMAIN, $cookieModel->getDomain());
         }
 
         if (Mage::getStoreConfigFlag(self::XML_PATH_GZIP)

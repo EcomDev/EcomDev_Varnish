@@ -36,6 +36,7 @@ class EcomDev_Varnish_Shell extends Mage_Shell_Abstract
         'vcl:generate' => array(
             'file' => 'f',
             'config' => 'c',
+            'version' => 'v'
         ),
         'cache:ban' => array(
             'header' => 'h',
@@ -61,7 +62,8 @@ Defined <action>s:
   vcl:generate          Generates vcl file
     -f --file               File to which output the changes, if not specified it outputs to STDOUT
     -c --config             JSON configuration file with varnish VCL options
-    -t --template           Template file for rendering. By default ecomdev/varnish/vcl/config.phtml
+    -v --version            Version of VCL. By default: 4
+    -t --template           Template file for rendering. By default: ecomdev/varnish/vcl/config.phtml
 
   cache:ban             Bans varnish pages by request
     -h --header             Option name for ban. By default it uses req.url
@@ -166,12 +168,17 @@ USAGE;
         );
 
         $block = $this->getConfigBlock();
-        if ($this->getArg('template')) {
-            $block->setTemplate($this->getArg('template'));
+        
+        if ($version = $this->getArg('version')) {
+            $block->setVersion($version);
+        }
+        
+        if ($template = $this->getArg('template')) {
+            $block->setTemplate($template);
         }
 
         $block->setConfig($config);
-
+        
         $file = $this->getArg('file');
 
         if ($file) {

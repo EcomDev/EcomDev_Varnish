@@ -13,7 +13,6 @@ endif;
 ?>
 import std;
 import header;
-import cookie;
 import ipcast;
 import querystring;
 
@@ -95,9 +94,10 @@ sub detect_admin {
     }
 }
 
-# Custom functions
+
+ # Custom functions
 sub normalize_url {
-    <?php if ($this->getConfig()->getCookieWhitelist()):?>
+    <?php if ($this->getConfig()->getUrlQueryBlacklist()):?>
     if (req.url ~ "(\?|&)(<?php echo implode('|', $this->getConfig()->getUrlQueryBlacklist());?>)=") {
         # Some generic URL manipulation, useful for high hit ratio, e.g. removing all those track parameters
         set req.url = querystring.regfilter(req.url, "<?php echo implode('|', $this->getConfig()->getUrlQueryBlacklist());?>");
@@ -109,19 +109,6 @@ sub normalize_url {
         set req.url = regsub(req.url, "\?$", "");
     } else {
         set req.url = querystring.sort(req.url);
-    }
-}
-
-sub normalize_cookie {
-    <?php if ($this->getConfig()->getCookieWhitelist()):?>
-    cookie.filter_except("<?php echo implode(',', $this->getConfig()->getCookieWhitelist());?>");
-    <?php endif; ?>
-
-    set req.http.cookie = cookie.get_string();
-
-    # Are there cookies left with only spaces or that are empty?
-    if (req.http.Cookie ~ "^\s*$") {
-        unset req.http.Cookie;
     }
 }
 
@@ -152,14 +139,30 @@ sub normalize_gzip_ua {
     set req.http.User-Agent = req.http.User-Agent + " " + req.http.X-UA-Device;
 }
 
+sub extract_cookie {
+    set req.http.X-Cookie-Store = "";
+    set req.http.X-Cookie-Currency = "";
+    set req.http.X-Cookie-Segment = "";
+
+    if (req.http.cookie ~ "(^|; ?)<?php echo $this->getConfig()->getCookieName('store');?>=[^;]+") {
+        set req.http.X-Cookie-Store = "<?php echo $this->getConfig()->getCookieName('store');?>=" + regsub(req.http.cookie, "(^|.*; ?)<?php echo $this->getConfig()->getCookieName('store');?>=([^;]+);?.*", "\2") + "; ";
+    }
+
+    if (req.http.cookie ~ "(^|; ?)<?php echo $this->getConfig()->getCookieName('store');?>=[^;]+") {
+        set req.http.X-Cookie-Currency = "<?php echo $this->getConfig()->getCookieName('store');?>=" + regsub(req.http.cookie, "(^|.*; ?)<?php echo $this->getConfig()->getCookieName('store');?>=([^;]+);?.*", "\2") + "; ";
+    }
+
+    if (req.http.cookie ~ "(^|; ?)<?php echo $this->getConfig()->getCookieName('segment');?>=[^;]+") {
+        set req.http.X-Cookie-Segment = "<?php echo $this->getConfig()->getCookieName('segment');?>=" + regsub(req.http.cookie, "(^|.*; ?)<?php echo $this->getConfig()->getCookieName('segment');?>=([^;]+);?.*", "\2") + "; ";
+    }
+}
+
+
 sub normalize_customer_segment {
     unset req.http.X-Cache-Segment;
 
-    if(cookie.isset("segment_checksum")) {
-        set req.http.X-Cache-Segment = cookie.get("segment_checksum");
-        if (req.http.X-Cache-Segment) {
-            set client.identity = client.identity + req.http.X-Cache-Segment;
-        }
+    if (req.http.cookie ~ "(^|; ?)<?php echo $this->getConfig()->getCookieName('segment');?>=[^;]+;") {
+        set req.http.X-Cache-Segment = regsub(req.http.cookie, "(^|.*; ?)<?php echo $this->getConfig()->getCookieName('segment');?>=([^;]+);.*", "\2");
     }
 }
 
@@ -180,6 +183,7 @@ sub normalize_ip_address {
 sub normalize_esi {
    # Send Surrogate-Capability headers to announce ESI support to backend
     set req.http.Surrogate-Capability = "key=ESI/1.0";
+    unset req.http.X-Esi-Include;
 
     if (req.esi_level > 0) {
         # Notify Magento that we are performing ESI include call
@@ -188,10 +192,7 @@ sub normalize_esi {
         # If in url we have an instruction to filter cookies in url
         if (req.url ~ "/filter_cookies/1/") {
             unset req.http.Cookie;
-
-            # Keep only store and currency cookies of Magento
-            cookie.filter_except("store,currency");
-            set req.http.Cookie = cookie.get_string();
+            set req.http.Cookie = req.http.X-Cookie-Store + req.http.X-Cookie-Currency + req.http.X-Cookie-Segment;
         }
 
         # If in url we have an instruction to exclude all cookies from url
@@ -208,15 +209,16 @@ sub vcl_recv {
         error 404 "Not Found";
     }
 
-    cookie.parse(req.http.cookie);
     call detect_admin;
 
     set client.identity = req.http.User-Agent + " " + client.ip;
 
     call normalize_url;
+    call extract_cookie;
     call normalize_customer_segment;
-    call normalize_cookie;
     call normalize_ip_address;
+    call normalize_gzip_ua;
+    call normalize_esi;
 
 <?php if ($this->getConfig()->getDeviceDetectLibraryPath()): ?>
     call devicedetect;
@@ -255,19 +257,6 @@ sub vcl_recv {
         set req.hash_always_miss = true;
     }
 
-    # Only deal with "normal" types
-    if (req.request != "GET" &&
-            req.request != "HEAD" &&
-            req.request != "PUT" &&
-            req.request != "POST" &&
-            req.request != "TRACE" &&
-            req.request != "OPTIONS" &&
-            req.request != "PATCH" &&
-            req.request != "DELETE") {
-        /* Non-RFC2616 or CONNECT which is weird. */
-        return (pipe);
-    }
-
     # Large static files should be piped, so they are delivered directly to the end-user without
     # waiting for Varnish to fully read the file first.
     if (req.url ~ "^[^?]*\.(mp[34]|rar|tar|tgz|gz|wav|zip|pdf|rtf|bz2|flv|png|jpeg|jpg|doc|bmp)(\?.*)?$") {
@@ -284,8 +273,38 @@ sub vcl_recv {
         unset req.http.Cookie;
     }
 
-
     set req.grace = <?php echo $this->getConfig()->getGracePeriod();?>;
+
+    # Only deal with "normal" types
+    if (req.request != "GET" &&
+        req.request != "HEAD" &&
+        req.request != "PUT" &&
+        req.request != "POST" &&
+        req.request != "TRACE" &&
+        req.request != "OPTIONS" &&
+        req.request != "PATCH" &&
+        req.request != "DELETE") {
+        /* Non-RFC2616 or CONNECT which is weird. */
+        return (pipe);
+    }
+
+    # Large static files should be piped, so they are delivered directly to the end-user without
+    # waiting for Varnish to fully read the file first.
+    if (req.url ~ "^[^?]*\.(mp[34]|rar|tar|tgz|gz|wav|zip|pdf|rtf|bz2|flv|doc|bmp)(\?.*)?$") {
+        return (pipe);
+    }
+
+    # Do not cache requests that are not cachable. Cache only GET, HEAD and OPTIONS
+    if (req.request != "GET" && req.request != "HEAD" && req.request != "OPTIONS") {
+        return (pass);
+    }
+
+    # Remove all cookies for static files that can be cached
+    if (req.url ~ "^[^?]*\.(css|eot|svg|gif|ico|js|jpg|jpeg|png|less|swf|txt|woff|xml|css\.map)(\?.*)?$") {
+        unset req.http.Cookie;
+    }
+
+    set req.http.X-External-Gzip = 1;
 
     return (lookup);
 }
@@ -388,7 +407,7 @@ sub vcl_fetch {
     }
 
     # Cache all static files that are small by nature
-    if (req.url ~ "^[^?]*\.(css|svg|eot|gif|ico|js|less|txt|woff|xml|css\.map)(\?.*)?$") {
+    if (req.url ~ "^[^?]*\.(css|svg|eot|jpg|jpeg|png|gif|ico|js|less|txt|woff|xml|css\.map)(\?.*)?$") {
         set beresp.ttl = 5h;
         set beresp.grace = <?php echo $this->getConfig()->getGracePeriod();?>;
         unset beresp.http.Set-Cookie;
@@ -422,26 +441,23 @@ sub vcl_deliver {
         set resp.http.X-Cache = "uncached";
     }
 
-    header.remove(resp.http.Set-Cookie, "segment_checksum=;");
-    header.remove(resp.http.Set-Cookie, "store=;");
+    header.remove(resp.http.Set-Cookie, "<?php echo $this->getConfig()->getCookieName('segment');?>=;");
+    header.remove(resp.http.Set-Cookie, "<?php echo $this->getConfig()->getCookieName('store');?>=;");
 
-    if (resp.http.X-Cache-Segment ~ "^.+$"
-        && (!cookie.isset("segment_checksum") || cookie.get("segment_checksum") != resp.http.X-Cache-Segment)
-        && !header.get(resp.http.Set-Cookie, "segment_checksum=")) {
-        header.append(resp.http.Set-Cookie, "segment_checksum=" + resp.http.X-Cache-Segment + "; Domain=." + req.http.Host + "; Path=/");
+    if (resp.http.X-Cache-Segment ~ "^.+$" && (!req.http.X-Cache-Segment || req.http.X-Cache-Segment != resp.http.X-Cache-Segment)
+        && !header.get(resp.http.Set-Cookie, "<?php echo $this->getConfig()->getCookieName('segment');?>=")) {
+        header.append(resp.http.Set-Cookie, "<?php echo $this->getConfig()->getCookieName('segment');?>=" + resp.http.X-Cache-Segment + "; Domain=." + resp.http.X-Cookie-Domain + "; Path=/");
     }
 
-    if (resp.http.X-Cache-Store ~ "^.+$"
-        && (!cookie.isset("store") || cookie.get("store") != resp.http.X-Cache-Store)
-        && !header.get(resp.http.Set-Cookie, "store=")) {
-        header.append(resp.http.Set-Cookie, "store=" + resp.http.X-Cache-Store + "; Domain=." + req.http.Host + "; Path=/; HttpOnly");
+    if (resp.http.X-Cache-Store ~ "^.+$" && (!req.http.X-Cookie-Store || req.http.X-Cookie-Store != resp.http.X-Cache-Store)
+        && !header.get(resp.http.Set-Cookie, "<?php echo $this->getConfig()->getCookieName('store');?>=")) {
+        header.append(resp.http.Set-Cookie, "<?php echo $this->getConfig()->getCookieName('store');?>=" + resp.http.X-Cache-Store + "; Domain=." + resp.http.X-Cookie-Domain + "; Path=/; HttpOnly");
     }
 
     # Remove debug headers if ip address is not whitelisted
     if (client.ip ~ is_local && ipcast.ip(req.http.<?php echo $this->getConfig()->getIpHeader();?>, "127.0.0.1") !~ allow_refresh) {
         remove resp.http.X-Debug;
         remove resp.http.X-Varnish;
-        remove resp.http.X-Cache;
     }
 
     # Remove headers that should be removed when there is no debug enabled

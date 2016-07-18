@@ -279,6 +279,7 @@ class EcomDev_Varnish_Model_Vcl_Config_Array
      * List of cookie names, that are used for Magento
      *
      * @return string[]
+     * @deprecated since 2.0.0
      */
     public function getCookieWhiteList()
     {
@@ -293,6 +294,37 @@ class EcomDev_Varnish_Model_Vcl_Config_Array
                 EcomDev_Varnish_Helper_Data::COOKIE_TOKEN_CHECKSUM
             )
         );
+    }
+
+    /**
+     * Returns cookie name for VCL configuration
+     *
+     * @param string $type
+     *
+     * @return string
+     */
+    public function getCookieName($type)
+    {
+        $defaultCookieNames = $this->getConfigArrayOption(
+            'default_cookie_names',
+            [
+                'segment' => EcomDev_Varnish_Model_Customer_Observer::COOKIE_SEGMENT
+            ]
+        );
+
+        $cookieNames = $this->getConfigArrayOption(
+            'cookie_names',
+            []
+        );
+
+
+        $cookieNames = $defaultCookieNames + $cookieNames;
+
+        if (isset($cookieNames[$type])) {
+            return $cookieNames[$type];
+        }
+
+        return $type;
     }
 
     /**
