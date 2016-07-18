@@ -1,3 +1,4 @@
+vcl 4.0;
 <?php
 /** @var $this EcomDev_Varnish_Block_Vcl_Config */
 $_probeUrl = $this->getConfig()->getProbeUrl();
@@ -13,9 +14,8 @@ endif;
 ?>
 import std;
 import header;
-import cookie;
-import ipcast;
 import querystring;
+import directors;
 
 <?php if ($this->getConfig()->getDeviceDetectLibraryPath()): ?>
 include "<?php echo $this->getConfig()->getDeviceDetectLibraryPath();?>";
@@ -57,15 +57,13 @@ backend <?php echo $_name; ?> {
 <?php endforeach; ?>
 
 <?php if (count($_balancedBackendList) > 1): ?>
-director balancer <?php echo $this->getConfig()->getDirectorType(); ?> {
+sub vcl_init {
+    new balancer = directors.<?php echo $this->getConfig()->getDirectorType(); ?>();
     <?php foreach ($_balancedBackendList as $_backendName): ?>
-    {
-      .backend = <?php echo $_backendName;?>;
-      .weight = 1;
-    }
+    balancer.add_backend(<?php echo $_backendName;?>);
     <?php endforeach;?>
 }
-<?php $_directorName = 'balancer';?>
+<?php $_directorName = 'balancer.backend()';?>
 <?php else: ?>
 <?php $_directorName = !empty($_balancedBackendList) ? current($_balancedBackendList) : key($_backendList);?>
 <?php endif; ?>
@@ -95,9 +93,10 @@ sub detect_admin {
     }
 }
 
-# Custom functions
+
+ # Custom functions
 sub normalize_url {
-    <?php if ($this->getConfig()->getCookieWhitelist()):?>
+    <?php if ($this->getConfig()->getUrlQueryBlacklist()):?>
     if (req.url ~ "(\?|&)(<?php echo implode('|', $this->getConfig()->getUrlQueryBlacklist());?>)=") {
         # Some generic URL manipulation, useful for high hit ratio, e.g. removing all those track parameters
         set req.url = querystring.regfilter(req.url, "<?php echo implode('|', $this->getConfig()->getUrlQueryBlacklist());?>");
@@ -108,20 +107,7 @@ sub normalize_url {
     if (req.url ~ "\?$") {
         set req.url = regsub(req.url, "\?$", "");
     } else {
-        set req.url = querystring.sort(req.url);
-    }
-}
-
-sub normalize_cookie {
-    <?php if ($this->getConfig()->getCookieWhitelist()):?>
-    cookie.filter_except("<?php echo implode(',', $this->getConfig()->getCookieWhitelist());?>");
-    <?php endif; ?>
-
-    set req.http.cookie = cookie.get_string();
-
-    # Are there cookies left with only spaces or that are empty?
-    if (req.http.cookie ~ "^\s*$") {
-        remove req.http.cookie;
+        set req.url = std.querysort(req.url);
     }
 }
 
@@ -131,14 +117,14 @@ sub normalize_gzip_ua {
     if (req.http.Accept-Encoding) {
         if (req.url ~ "\.(jpg|png|gif|gz|tgz|bz2|tbz|mp3|ogg)$") {
             # No point in compressing these
-            remove req.http.Accept-Encoding;
+            unset req.http.Accept-Encoding;
         } elsif (req.http.Accept-Encoding ~ "gzip") {
             set req.http.Accept-Encoding = "gzip";
         } elsif (req.http.Accept-Encoding ~ "deflate") {
             set req.http.Accept-Encoding = "deflate";
         } else {
             # unkown algorithm
-            remove req.http.Accept-Encoding;
+            unset req.http.Accept-Encoding;
         }
     }
 
@@ -152,26 +138,52 @@ sub normalize_gzip_ua {
     set req.http.User-Agent = req.http.User-Agent + " " + req.http.X-UA-Device;
 }
 
-sub normalize_customer_segment {
-    unset req.http.X-Cache-Segment;
+sub extract_cookie {
+    set req.http.X-Cookie-Store = "";
+    set req.http.X-Cookie-Currency = "";
+    set req.http.X-Cookie-Segment = "";
 
-    if(cookie.isset("segment_checksum")) {
-        set req.http.X-Cache-Segment = cookie.get("segment_checksum");
-        if (req.http.X-Cache-Segment) {
-            set client.identity = client.identity + req.http.X-Cache-Segment;
-        }
+    if (req.http.cookie ~ "(^|; ?)<?php echo $this->getConfig()->getCookieName('store');?>=[^;]+") {
+        set req.http.X-Cookie-Store = "<?php echo $this->getConfig()->getCookieName('store');?>=" + regsub(req.http.cookie, "(^|.*; ?)<?php echo $this->getConfig()->getCookieName('store');?>=([^;]+);?.*", "\2") + "; ";
+    }
+
+    if (req.http.cookie ~ "(^|; ?)<?php echo $this->getConfig()->getCookieName('store');?>=[^;]+") {
+        set req.http.X-Cookie-Currency = "<?php echo $this->getConfig()->getCookieName('store');?>=" + regsub(req.http.cookie, "(^|.*; ?)<?php echo $this->getConfig()->getCookieName('store');?>=([^;]+);?.*", "\2") + "; ";
+    }
+
+    if (req.http.cookie ~ "(^|; ?)<?php echo $this->getConfig()->getCookieName('segment');?>=[^;]+") {
+        set req.http.X-Cookie-Segment = "<?php echo $this->getConfig()->getCookieName('segment');?>=" + regsub(req.http.cookie, "(^|.*; ?)<?php echo $this->getConfig()->getCookieName('segment');?>=([^;]+);?.*", "\2") + "; ";
     }
 }
 
-sub normalize_ip_address {
-    if (req.http.<?php echo $this->getConfig()->getIpHeader();?>) {
-        set req.http.<?php echo $this->getConfig()->getIpHeader();?> = regsub(req.http.<?php echo $this->getConfig()->getIpHeader();?>, "^(^[^,]+),?.*$", "\1");
-        if (ipcast.ip(req.http.<?php echo $this->getConfig()->getIpHeader();?>, "127.0.0.1") == "127.0.0.1" ) {
-            error 400 "Bad request";
+
+sub normalize_customer_segment {
+    unset req.http.X-Cache-Segment;
+
+    if (req.http.cookie ~ "(^|; ?)<?php echo $this->getConfig()->getCookieName('segment');?>=[^;]+;") {
+        set req.http.X-Cache-Segment = regsub(req.http.cookie, "(^|.*; ?)<?php echo $this->getConfig()->getCookieName('segment');?>=([^;]+);.*", "\2");
+    }
+}
+
+# Various optimizations for esi component of the system
+sub normalize_esi {
+   # Send Surrogate-Capability headers to announce ESI support to backend
+    set req.http.Surrogate-Capability = "key=ESI/1.0";
+    unset req.http.X-Esi-Include;
+
+    if (req.esi_level > 0) {
+        # Notify Magento that we are performing ESI include call
+        set req.http.X-Esi-Include = 1;
+
+        # If in url we have an instruction to filter cookies in url
+        if (req.url ~ "/filter_cookies/1/") {
+            unset req.http.Cookie;
+            set req.http.Cookie = req.http.X-Cookie-Store + req.http.X-Cookie-Currency + req.http.X-Cookie-Segment;
         }
 
-        if (client.ip !~ is_local) {
-            unset req.http.<?php echo $this->getConfig()->getIpHeader();?>;
+        # If in url we have an instruction to exclude all cookies from url
+        if (req.url ~ "/filter_referrer/1/") {
+            unset req.http.Referer;
         }
     }
 }
@@ -180,34 +192,43 @@ sub normalize_ip_address {
 sub vcl_recv {
     # shortcut for DFind requests
     if (req.url ~ "^/w00tw00t") {
-        error 404 "Not Found";
+        return (synth(404, "Not Found"));
     }
 
-    cookie.parse(req.http.cookie);
     call detect_admin;
 
     set client.identity = req.http.User-Agent + " " + client.ip;
 
     call normalize_url;
+    call extract_cookie;
     call normalize_customer_segment;
-    call normalize_cookie;
-    call normalize_ip_address;
+    call normalize_gzip_ua;
+    call normalize_esi;
+
+    if (req.http.<?php echo $this->getConfig()->getIpHeader();?>) {
+        set req.http.<?php echo $this->getConfig()->getIpHeader();?> = regsub(req.http.<?php echo $this->getConfig()->getIpHeader();?>, "^(^[^,]+),?.*$", "\1");
+        if (std.ip(req.http.<?php echo $this->getConfig()->getIpHeader();?>, "127.0.0.1") == "127.0.0.1" ) {
+            return (synth(400, "Bad request"));
+        }
+
+        if (client.ip !~ is_local) {
+            unset req.http.<?php echo $this->getConfig()->getIpHeader();?>;
+        }
+    }
 
 <?php if ($this->getConfig()->getDeviceDetectLibraryPath()): ?>
     call devicedetect;
 <?php endif;?>
 
     call normalize_gzip_ua;
-
-    # Send Surrogate-Capability headers to announce ESI support to backend
-    set req.http.Surrogate-Capability = "key=ESI/1.0";
+    call normalize_esi;
 
     if (req.http.X-Admin-Match) {
-        set req.backend = <?php echo $this->getConfig()->getAdminBackend();?>;
+        set req.backend_hint = <?php echo $this->getConfig()->getAdminBackend();?>;
         unset req.http.X-Admin-Match;
         return (pass);
     } else {
-        set req.backend = <?php echo $_directorName; ?>;
+        set req.backend_hint = <?php echo $_directorName; ?>;
     }
 
     if (req.http.<?php echo $this->getConfig()->getOffloadHeader();?> && client.ip !~ is_local) {
@@ -225,23 +246,10 @@ sub vcl_recv {
     if (req.http.Cache-Control ~ "no-cache"
         && client.ip ~ is_local
         && req.http.<?php echo $this->getConfig()->getIpHeader();?>
-        && ipcast.ip(req.http.<?php echo $this->getConfig()->getIpHeader();?>, "127.0.0.1") ~ allow_refresh ) {
+        && std.ip(req.http.<?php echo $this->getConfig()->getIpHeader();?>, "127.0.0.1") ~ allow_refresh ) {
         set req.hash_always_miss = true;
     } else if (req.http.Cache-Control ~ "no-cache" && client.ip !~ is_local && client.ip ~ allow_refresh) {
         set req.hash_always_miss = true;
-    }
-
-    # Only deal with "normal" types
-    if (req.request != "GET" &&
-            req.request != "HEAD" &&
-            req.request != "PUT" &&
-            req.request != "POST" &&
-            req.request != "TRACE" &&
-            req.request != "OPTIONS" &&
-            req.request != "PATCH" &&
-            req.request != "DELETE") {
-        /* Non-RFC2616 or CONNECT which is weird. */
-        return (pipe);
     }
 
     # Large static files should be piped, so they are delivered directly to the end-user without
@@ -251,7 +259,7 @@ sub vcl_recv {
     }
 
     # Do not cache requests that are not cachable. Cache only GET, HEAD and OPTIONS
-    if (req.request != "GET" && req.request != "HEAD" && req.request != "OPTIONS") {
+    if (req.method != "GET" && req.method != "HEAD" && req.method != "OPTIONS") {
         return (pass);
     }
 
@@ -260,13 +268,38 @@ sub vcl_recv {
         unset req.http.Cookie;
     }
 
-    if (req.backend.healthy) {
-        set req.grace = 5m;
-    } else {
-        set req.grace = <?php echo $this->getConfig()->getGracePeriod();?>;
+    # Only deal with "normal" types
+    if (req.method != "GET" &&
+        req.method != "HEAD" &&
+        req.method != "PUT" &&
+        req.method != "POST" &&
+        req.method != "TRACE" &&
+        req.method != "OPTIONS" &&
+        req.method != "PATCH" &&
+        req.method != "DELETE") {
+        /* Non-RFC2616 or CONNECT which is weird. */
+        return (pipe);
     }
 
-    return (lookup);
+    # Large static files should be piped, so they are delivered directly to the end-user without
+    # waiting for Varnish to fully read the file first.
+    if (req.url ~ "^[^?]*\.(mp[34]|rar|tar|tgz|gz|wav|zip|pdf|rtf|bz2|flv|doc|bmp)(\?.*)?$") {
+        return (pipe);
+    }
+
+    # Do not cache requests that are not cachable. Cache only GET, HEAD and OPTIONS
+    if (req.method != "GET" && req.method != "HEAD" && req.method != "OPTIONS") {
+        return (pass);
+    }
+
+    # Remove all cookies for static files that can be cached
+    if (req.url ~ "^[^?]*\.(css|eot|svg|gif|ico|js|jpg|jpeg|png|less|swf|txt|woff|xml|css\.map)(\?.*)?$") {
+        unset req.http.Cookie;
+    }
+
+    set req.http.X-External-Gzip = 1;
+
+    return (hash);
 }
 
 # The data on which the hashing will take place
@@ -304,16 +337,22 @@ sub vcl_hash {
         hash_data(req.http.Authorization);
     }
 
-    return (hash);
+    set req.http.X-External-Gzip = 1;
+
+    return (lookup);
 }
 
 # Unsets accept-encoding in order to process gzip by ourselves
-sub vcl_miss {
-    unset bereq.http.accept-encoding;
+sub vcl_backend_fetch {
+    if (bereq.http.X-External-Gzip) {
+        unset bereq.http.Accept-Encoding;
+    }
+
+    return (fetch);
 }
 
 # Handle the HTTP request coming from our backend
-sub vcl_fetch {
+sub vcl_backend_response {
     # Parse ESI request and remove Surrogate-Control header
     if (beresp.http.Surrogate-Control ~ "ESI/1.0") {
         set beresp.do_esi = true;
@@ -321,7 +360,7 @@ sub vcl_fetch {
 
     # Enable gzip compression, if header for it is specified
     if (beresp.http.X-Cache-Gzip) {
-        remove beresp.http.X-Cache-Gzip;
+        unset beresp.http.X-Cache-Gzip;
         set beresp.do_gzip = true;
     }
 
@@ -333,8 +372,9 @@ sub vcl_fetch {
     # To prevent accidental replace, we only filter the 301/302 redirects for now.
     if (beresp.status == 301 || beresp.status == 302) {
         set beresp.http.Location = regsub(beresp.http.Location, ":[0-9]+", "");
+        set beresp.uncacheable = true;
         set beresp.ttl = 30s;
-        return (hit_for_pass);
+        return (deliver);
     }
 
     # Make 404 page being cached for 30 seconds to prevent backend load
@@ -346,30 +386,32 @@ sub vcl_fetch {
     # Hit-for-pass for auth and request erors for 5s
     if (beresp.status > 400 && beresp.status < 500) {
         set beresp.ttl = 5s;
-        return (hit_for_pass);
+        set beresp.uncacheable = true;
+        return (deliver);
     }
 
     # Hit-for-pass auth for backend errors, without ttl and grace definition
     if (beresp.status >= 500 && beresp.status < 600) {
         set beresp.ttl = 0s;
         set beresp.grace = 0s;
-        return (hit_for_pass);
+        set beresp.uncacheable = true;
+        return (deliver);
     }
 
-    set beresp.http.X-UA-Device = req.http.X-UA-Device;
+    set beresp.http.X-UA-Device = bereq.http.X-UA-Device;
 
     if (!beresp.http.X-Cache-Segment) {
-        set beresp.http.X-Cache-Segment = req.http.X-Cache-Segment;
+        set beresp.http.X-Cache-Segment = bereq.http.X-Cache-Segment;
     }
 
     # Cache all static files that are small by nature
-    if (req.url ~ "^[^?]*\.(css|svg|eot|gif|ico|js|less|txt|woff|xml|css\.map)(\?.*)?$") {
+    if (bereq.url ~ "^[^?]*\.(css|svg|eot|jpg|jpeg|png|gif|ico|js|less|txt|woff|xml|css\.map)(\?.*)?$") {
         set beresp.ttl = 5h;
         set beresp.grace = <?php echo $this->getConfig()->getGracePeriod();?>;
         unset beresp.http.Set-Cookie;
 
         # Compress text based static files
-        if (req.url ~ "^[^?]*\.(css|svg|js|less|txt|xml|css\.map)(\?.*)?$") {
+        if (bereq.url ~ "^[^?]*\.(css|svg|js|less|txt|xml|css\.map)(\?.*)?$") {
             set beresp.do_gzip = true;
         }
 
@@ -381,8 +423,8 @@ sub vcl_fetch {
         set beresp.grace = <?php echo $this->getConfig()->getGracePeriod();?>;
         unset beresp.http.Set-Cookie;
     } else {
-        set beresp.ttl = 0s;
-        return (hit_for_pass);
+        set beresp.ttl = 5s;
+        set beresp.uncacheable = true;
     }
 
     return (deliver);
@@ -397,38 +439,37 @@ sub vcl_deliver {
         set resp.http.X-Cache = "uncached";
     }
 
-    header.remove(resp.http.Set-Cookie, "segment_checksum=;");
-    header.remove(resp.http.Set-Cookie, "store=;");
+    header.remove(resp.http.Set-Cookie, "<?php echo $this->getConfig()->getCookieName('segment');?>=;");
+    header.remove(resp.http.Set-Cookie, "<?php echo $this->getConfig()->getCookieName('store');?>=;");
 
-    if (resp.http.X-Cache-Segment ~ "^.+$"
-        && (!cookie.isset("segment_checksum") || cookie.get("segment_checksum") != resp.http.X-Cache-Segment)
-        && !header.get(resp.http.Set-Cookie, "segment_checksum=")) {
-        header.append(resp.http.Set-Cookie, "segment_checksum=" + resp.http.X-Cache-Segment + "; Domain=." + req.http.Host + "; Path=/");
+    if (resp.http.X-Cache-Segment ~ "^.+$" && (!req.http.X-Cache-Segment || req.http.X-Cache-Segment != resp.http.X-Cache-Segment)
+        && !header.get(resp.http.Set-Cookie, "<?php echo $this->getConfig()->getCookieName('segment');?>=")) {
+        header.append(resp.http.Set-Cookie, "<?php echo $this->getConfig()->getCookieName('segment');?>=" + resp.http.X-Cache-Segment + "; Domain=." + resp.http.X-Cookie-Domain + "; Path=/");
     }
 
-    if (resp.http.X-Cache-Store ~ "^.+$"
-        && (!cookie.isset("store") || cookie.get("store") != resp.http.X-Cache-Store)
-        && !header.get(resp.http.Set-Cookie, "store=")) {
-        header.append(resp.http.Set-Cookie, "store=" + resp.http.X-Cache-Store + "; Domain=." + req.http.Host + "; Path=/; HttpOnly");
+    if (resp.http.X-Cache-Store ~ "^.+$" && (!req.http.X-Cookie-Store || req.http.X-Cookie-Store != resp.http.X-Cache-Store)
+        && !header.get(resp.http.Set-Cookie, "<?php echo $this->getConfig()->getCookieName('store');?>=")) {
+        header.append(resp.http.Set-Cookie, "<?php echo $this->getConfig()->getCookieName('store');?>=" + resp.http.X-Cache-Store + "; Domain=." + resp.http.X-Cookie-Domain + "; Path=/; HttpOnly");
     }
 
     # Remove debug headers if ip address is not whitelisted
-    if (client.ip ~ is_local && ipcast.ip(req.http.<?php echo $this->getConfig()->getIpHeader();?>, "127.0.0.1") !~ allow_refresh) {
-        remove resp.http.X-Debug;
-        remove resp.http.X-Varnish;
-        remove resp.http.X-Cache;
+    if (client.ip ~ is_local && std.ip(req.http.<?php echo $this->getConfig()->getIpHeader();?>, "127.0.0.1") !~ allow_refresh) {
+        unset resp.http.X-Debug;
+        unset resp.http.X-Varnish;
     }
 
     # Remove headers that should be removed when there is no debug enabled
     if (!resp.http.X-Debug) {
-        remove resp.http.X-UA-Device;
-        remove resp.http.X-Cache-Segment;
-        remove resp.http.X-Cache-Objects;
-        remove resp.http.<?php echo $this->getConfig()->getOffloadHeader();?>;
-        remove resp.http.X-Powered-By;
-        remove resp.http.Server;
-        remove resp.http.Via;
-        remove resp.http.Link;
+        unset resp.http.X-UA-Device;
+        unset resp.http.X-Cache-Segment;
+        unset resp.http.X-Cache-Objects;
+        unset resp.http.X-Cache-Store;
+        unset resp.http.X-Cache-Ttl;
+        unset resp.http.<?php echo $this->getConfig()->getOffloadHeader();?>;
+        unset resp.http.X-Powered-By;
+        unset resp.http.Server;
+        unset resp.http.Via;
+        unset resp.http.Link;
     }
 
     return (deliver);

@@ -48,12 +48,14 @@ class EcomDev_Varnish_EsiController extends Mage_Core_Controller_Front_Action
             }
         }
 
-
         $requiredParams = array(
             'handles', 'package', 'theme', 'checksum'
         );
 
-        if (array_diff($requiredParams, array_keys($params)) !== array()
+        $hasRequired = array_intersect($requiredParams, array_keys($params));
+        $missingRequired = count($hasRequired) !== count($requiredParams);
+
+        if ($missingRequired
             || empty($params['handles'])
             || !Mage::helper('ecomdev_varnish')->validateChecksum($params)) {
             // Output empty screen if parameters are not valid

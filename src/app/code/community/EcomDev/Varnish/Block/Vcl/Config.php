@@ -10,9 +10,41 @@ class EcomDev_Varnish_Block_Vcl_Config
      */
     protected $config;
 
+    /**
+     * Varnish version
+     *
+     * @var int
+     */
+    protected $version = 4;
+
     protected function _construct()
     {
-        $this->setTemplate('ecomdev/varnish/vcl/config.phtml');
+        $this->initTemplate();
+    }
+
+    /**
+     * Initializes varnish version based template
+     *
+     * @return $this
+     */
+    private function initTemplate()
+    {
+        $this->setTemplate(sprintf('ecomdev/varnish/vcl/v%d/config.phtml', $this->version));
+        return $this;
+    }
+
+    /**
+     * Sets varnish version
+     *
+     * @param int $version
+     *
+     * @return $this
+     */
+    public function setVersion($version)
+    {
+        $this->version = (int)$version;
+        $this->initTemplate();
+        return $this;
     }
 
     /**

@@ -97,8 +97,17 @@ interface EcomDev_Varnish_Model_Vcl_ConfigInterface
      * List of cookie names, that are not used for Magento, e.g. tracking cookies, so can be easily ignored.
      *
      * @return string[]
+     * @deprecated since 2.0.0
      */
     public function getCookieWhiteList();
+
+    /**
+     * Returns cookie name by type
+     *
+     * @param string $type
+     * @return string
+     */
+    public function getCookieName($type);
 
     /**
      * Header to identify wich request is offloaded
