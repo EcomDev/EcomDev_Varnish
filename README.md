@@ -13,10 +13,6 @@ System Requirements
 Varnish Installation
 --------------------
 
-The varnish configuration can be generated using the shell file.
-
-Alternatively, you can use chef cookbook for configuring your varnish environment:
-
-https://github.com/EcomDev/chef-magento_varnish
+The varnish VCL can be generated using the shell script.
 
 **More information on usage of the extension can be found in the docs folder.**
