@@ -3,7 +3,7 @@
 Varnish Integration
 ===========================
 
-Implementation of the Varnish Vache module for Magento
+Implementation of the Varnish Cache module for Magento
 
 System Requirements
 -------------------
