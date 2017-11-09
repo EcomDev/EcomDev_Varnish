@@ -493,7 +493,7 @@ EcomDev.Varnish.Token = Class.create({
     replaceKeyInUrl: function (url) {
         if (url.match('/' + this.urlKeyParam) + '/') {
             url = url.replace(
-                new RegExp('/' + RegExp.escape(this.urlKeyParam) + '/[^/]/', 'g'),
+                new RegExp('/' + RegExp.escape(this.urlKeyParam) + '/[^/]+/', 'g'),
                 '/' + this.urlKeyParam + '/' + this.getTokenValue() + '/'
             );
         }
