@@ -629,7 +629,7 @@ class EcomDev_Varnish_Helper_Data extends Mage_Core_Helper_Abstract
             'customer_group_id' => array(self::XML_PATH_SEGMENT_CUSTOMER_GROUP, function () {
                 return Mage::getSingleton('customer/session')->getCustomerGroupId();
             }),
-            'store_id' => array(self::XML_PATH_SEGMENT_CUSTOMER_GROUP, function () {
+            'store_id' => array(self::XML_PATH_SEGMENT_STORE, function () {
                 return Mage::app()->getStore()->getId();
             }),
             'currency' => array(self::XML_PATH_SEGMENT_CURRENCY, function () {
