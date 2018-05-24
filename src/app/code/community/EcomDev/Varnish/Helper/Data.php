@@ -125,6 +125,11 @@ class EcomDev_Varnish_Helper_Data extends Mage_Core_Helper_Abstract
     protected $_ajaxReloadUrl;
 
     /**
+     * @var bool
+     */
+    protected $_noSessionCall = false;
+
+    /**
      * Returns a url for reloading
      * 
      * @return string
@@ -627,7 +632,7 @@ class EcomDev_Varnish_Helper_Data extends Mage_Core_Helper_Abstract
     {
         return array(
             'customer_group_id' => array(self::XML_PATH_SEGMENT_CUSTOMER_GROUP, function () {
-                return Mage::getSingleton('customer/session')->getCustomerGroupId();
+                return $this->_noSessionCall ? 0 : Mage::getSingleton('customer/session')->getCustomerGroupId();
             }),
             'store_id' => array(self::XML_PATH_SEGMENT_STORE, function () {
                 return Mage::app()->getStore()->getId();
@@ -740,5 +745,19 @@ class EcomDev_Varnish_Helper_Data extends Mage_Core_Helper_Abstract
         }
 
         return false;
+    }
+
+    public function setNoSessionCall($flag)
+    {
+        $this->_noSessionCall = $flag;
+    }
+
+    public function disableSessionForControllerAction($actionName, Mage_Core_Controller_Front_Action $controller)
+    {
+        $this->_noSessionCall = true;
+        $controller->setFlag($actionName, Mage_Core_Controller_Front_Action::FLAG_NO_START_SESSION, true);
+        $controller->setFlag($actionName, Mage_Core_Controller_Front_Action::FLAG_NO_COOKIES_REDIRECT, false);
+        $controller->setFlag($actionName, Mage_Core_Controller_Front_Action::FLAG_NO_PRE_DISPATCH, true);
+        $_SESSION = [];
     }
 }

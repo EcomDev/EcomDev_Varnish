@@ -38,7 +38,7 @@ class EcomDev_Varnish_AjaxController extends Mage_Core_Controller_Front_Action
      */
     public function preDispatch()
     {
-        $this->setFlag('token', self::FLAG_NO_START_SESSION, true);
+        $this->_getHelper()->disableSessionForControllerAction('token', $this);
 
         parent::preDispatch();
 
@@ -55,6 +55,12 @@ class EcomDev_Varnish_AjaxController extends Mage_Core_Controller_Front_Action
         }
 
         return $this;
+    }
+
+    public function postDispatch()
+    {
+        Mage::getSingleton('ecomdev_varnish/cookie')->apply();
+        parent::postDispatch();
     }
 
     /**
