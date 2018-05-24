@@ -23,6 +23,20 @@
 class EcomDev_Varnish_EsiController extends Mage_Core_Controller_Front_Action
 {
     /**
+     * Disables session
+     *
+     * @return $this
+     */
+    public function preDispatch()
+    {
+        if ($this->getRequest()->getParam('filter_cookies')) {
+            $this->_getHelper()->disableSessionForControllerAction('handle', $this);
+        }
+
+        return parent::preDispatch();
+    }
+
+    /**
      * Returns helper instance for the module
      *
      * @return EcomDev_Varnish_Helper_Data
