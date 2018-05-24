@@ -236,8 +236,7 @@ class EcomDev_Varnish_Model_Observer
 
             $this->_addResponseHeaders($controllerAction);
         }
-        
-        $this->performBan();
+
         return $this;
     }
 

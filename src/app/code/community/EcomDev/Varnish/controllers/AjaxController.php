@@ -57,6 +57,12 @@ class EcomDev_Varnish_AjaxController extends Mage_Core_Controller_Front_Action
         return $this;
     }
 
+    public function postDispatch()
+    {
+        Mage::getSingleton('ecomdev_varnish/cookie')->apply();
+        parent::postDispatch();
+    }
+
     /**
      * Creates token for secure form post
      *
