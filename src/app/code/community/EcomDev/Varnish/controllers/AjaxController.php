@@ -38,7 +38,7 @@ class EcomDev_Varnish_AjaxController extends Mage_Core_Controller_Front_Action
      */
     public function preDispatch()
     {
-        $this->_getHelper()->disableSessionForAction('token', $this);
+        $this->_getHelper()->disableSessionForControllerAction('token', $this);
 
         parent::preDispatch();
 
