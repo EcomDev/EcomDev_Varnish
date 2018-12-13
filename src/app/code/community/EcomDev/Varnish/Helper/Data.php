@@ -758,6 +758,8 @@ class EcomDev_Varnish_Helper_Data extends Mage_Core_Helper_Abstract
         $controller->setFlag($actionName, Mage_Core_Controller_Front_Action::FLAG_NO_START_SESSION, true);
         $controller->setFlag($actionName, Mage_Core_Controller_Front_Action::FLAG_NO_COOKIES_REDIRECT, false);
         $controller->setFlag($actionName, Mage_Core_Controller_Front_Action::FLAG_NO_PRE_DISPATCH, true);
-        $_SESSION = [];
+        if ($controller->getRequest()->getActionName() === $actionName) {
+            $_SESSION = [];
+        }
     }
 }
