@@ -32,6 +32,7 @@ class EcomDev_Varnish_Helper_Data extends Mage_Core_Helper_Abstract
     const HEADER_STORE = 'X-Cache-Store';
     const HEADER_COOKIE_DOMAIN = 'X-Cookie-Domain';
     const HEADER_GZIP = 'X-Cache-Gzip';
+    const HEADER_PAGE_TYPE = 'X-Magento-Page';
 
     const HEADER_OBJECTS_ITEMS = 100;
 
@@ -185,7 +186,9 @@ class EcomDev_Varnish_Helper_Data extends Mage_Core_Helper_Abstract
                 $headerValue
             );
         }
-        
+
+        $this->setVarnishHeader(self::HEADER_PAGE_TYPE, $this->getCurrentPage());
+
         if (!$this->hasVarnishHeader(self::HEADER_SEGMENT)) {
             $this->setVarnishHeader(self::HEADER_SEGMENT, $this->hashData($this->getCustomerSegment()));
         }
@@ -366,7 +369,7 @@ class EcomDev_Varnish_Helper_Data extends Mage_Core_Helper_Abstract
      * Sets (overrides) varnish header
      * 
      * @param string $name
-     * @param array $value
+     * @param array|string $value
      * @return $this
      */
     public function setVarnishHeader($name, $value)
@@ -727,7 +730,6 @@ class EcomDev_Varnish_Helper_Data extends Mage_Core_Helper_Abstract
     {
         $token = Mage::helper('core')->getRandomString(16);
         $this->addCookie(self::COOKIE_TOKEN, $token);
-        $this->addCookie(self::COOKIE_TOKEN_CHECKSUM, $this->getChecksum(array('token' => $token)));
         return $this;
     }
 
@@ -739,8 +741,8 @@ class EcomDev_Varnish_Helper_Data extends Mage_Core_Helper_Abstract
      */
     public function validateToken($token)
     {
-        $tokenChecksum = Mage::getSingleton('ecomdev_varnish/cookie')->get(self::COOKIE_TOKEN_CHECKSUM);
-        if ($tokenChecksum === $this->getChecksum(array('token' => $token))) {
+        $cookieToken = Mage::getSingleton('ecomdev_varnish/cookie')->get(self::COOKIE_TOKEN);
+        if ($cookieToken === $token) {
             return true;
         }
 

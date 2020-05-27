@@ -49,26 +49,13 @@
                             <show_in_default>1</show_in_default>
                             <comment>Used to prevent non-system calls to esi controllers</comment>
                         </esi_key>
-                        <server translate="label comment">
-                            <label>Server Address(es)</label>
+                        <http_ban translate="label comment">
+                            <label>HTTP Ban URLs</label>
+                            <comment>Specify each endpoint url to which extension sends cache clear requests (separated by newline)</comment>
                             <frontend_type>textarea</frontend_type>
-                            <sort_order>20</sort_order>
+                            <sort_order>25</sort_order>
                             <show_in_default>1</show_in_default>
-                            <comment>127.0.0.1:6082</comment>
-                        </server>
-                        <secret translate="label">
-                            <label>Server Secret</label>
-                            <frontend_type>text</frontend_type>
-                            <sort_order>30</sort_order>
-                            <show_in_default>1</show_in_default>
-                        </secret>
-                        <secret_newline translate="label">
-                            <label>Server Secret New Line</label>
-                            <frontend_type>select</frontend_type>
-                            <source_model>adminhtml/system_config_source_yesno</source_model>
-                            <sort_order>35</sort_order>
-                            <show_in_default>1</show_in_default>
-                        </secret_newline>
+                        </http_ban>
                         <gzip translate="label">
                             <label>Enable Gzip Compression</label>
                             <source_model>adminhtml/system_config_source_yesno</source_model>

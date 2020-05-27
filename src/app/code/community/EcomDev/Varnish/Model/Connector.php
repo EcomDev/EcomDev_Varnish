@@ -11,15 +11,11 @@
  *
  * @category   EcomDev
  * @package    EcomDev_Varnish
- * @copyright  Copyright (c) 2014 EcomDev BV (http://www.ecomdev.org)
+ * @copyright  Copyright (c) 2020 EcomDev BV (http://www.ecomdev.org)
  * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  * @author     Ivan Chepurnyi <ivan.chepurnyi@ecomdev.org>
  */
 
-
-use ride\library\varnish\VarnishPool;
-use ride\library\varnish\VarnishAdmin;
-use ride\library\varnish\exception\VarnishException;
 
 /**
  * Connector to the varnish admin
@@ -27,85 +23,44 @@ use ride\library\varnish\exception\VarnishException;
  */
 class EcomDev_Varnish_Model_Connector
 {
-    const XML_PATH_VARNISH_SERVER = 'varnish/settings/server';
-    const XML_PATH_VARNISH_SECRET = 'varnish/settings/secret';
-    const XML_PATH_VARNISH_SECRET_NEWLINE = 'varnish/settings/secret_newline';
+    const XML_PATH_VARNISH_SERVER = 'varnish/settings/http_ban';
 
     const HEADER_OBJECTS = EcomDev_Varnish_Helper_Data::HEADER_OBJECTS;
 
     /**
-     * Admin socket for varnish system
-     * 
-     * @var VarnishPool
-     */
-    protected $pool;
-
-    /**
-     * Returns nothing as a different library
-     * used now for varnish communication
-     *
-     * @deprecated since 2.0.0
-     */
-    public function getAdapter()
-    {
-        return array();
-    }
-
-    /**
      * Return Varnish Admin socket
-     * 
-     * @return VarnishPool
+     *
+     * DEPRACTED, all ban operations now happen via HTTP
+     *
+     * @return array[]
+     * @deprecated since 3.0.0
      */
     public function getVarnishPool()
     {
-        if ($this->pool === null) {
-            $this->_initVarnishPool();
-        }
-        
-        return $this->pool;
+        return [];
     }
 
     /**
-     * Initializes varnish pool
-     *
-     * @return $this
-     * @throws VarnishException
+     * @return string[]
      */
-    protected function _initVarnishPool()
+    private function parseVarnishServers()
     {
-        $this->pool = new VarnishPool();
-
         $addresses =  Mage::getStoreConfig(self::XML_PATH_VARNISH_SERVER);
-        $secret = Mage::getStoreConfig(self::XML_PATH_VARNISH_SECRET);
 
-        if (Mage::getStoreConfigFlag(self::XML_PATH_VARNISH_SECRET_NEWLINE)) {
-            $secret .= "\n";
-        }
-        
         $lines = explode("\n", $addresses);
-        $instantiated = array();
+        $servers = array();
         foreach ($lines as $line) {
             $line = trim($line);
-            
-            if (!preg_match('/^[a-z0-9_\-\.]+:\d+$/', $line)
-                || isset($instantiated[$line])) {
+            if (!preg_match('/^[a-zA-Z0-9_\-.]+:\d+$/', $line)) {
                 continue;
             }
-            
+
             list($host, $port) = explode(':', $line);
 
-            try {
-                $this->pool->addServer(new VarnishAdmin($host, $port, $secret));
-            } catch (VarnishException $e) {
-                Mage::logException($e);
-            }
-
-            $instantiated[$line] = true;
+            $servers[$line] = sprintf('http://%s:%s', $host, $port);
         }
 
-        $this->pool->setIgnoreOnFail(true);
-
-        return $this;
+        return $servers;
     }
 
     /**
@@ -116,38 +71,92 @@ class EcomDev_Varnish_Model_Connector
      */
     public function banTags($tags)
     {
-        try {
-            $this->getVarnishPool()->ban('obj.http.' . self::HEADER_OBJECTS . ' ~ ' . implode('|', $tags));
-        } catch (VarnishException $e) {
-            Mage::logException($e);
+        if ($tags) {
+            $this->banHeader(
+                self::HEADER_OBJECTS,
+                '(' . implode('|', $tags) . ')'
+            );
         }
 
         return $this;
     }
 
     /**
-     * Invokes method on each adapter.
+     * Ban pages by header value
      *
-     * @param string $method
-     * @param null|string|int $firstArg
-     * @param null|string|int $secondArg
-     * @return $this
-     * @deprecated since 2.0.0
+     * @param string $headerName
+     * @param string $headerValue
      */
-    public function walk($method, $firstArg = null, $secondArg = null)
+    public function banHeader(string $headerName, string $headerValue)
     {
-        if ($method === 'purge') {
-            $method = 'ban';
+        try {
+
+            $this->executeOnPool(
+                'header',
+                [
+                    'header' => $headerName,
+                    'value' => $headerValue
+                ]
+            );
+        } catch (Exception $e) {
+            Mage::logException($e);
+        }
+    }
+
+    /**
+     * Ban pages that start with specified URL
+     *
+     * @param string $url
+     */
+    public function banUrl(string $url)
+    {
+        try {
+            $this->executeOnPool(
+                'url',
+                ['url' => $url]
+            );
+        } catch (Exception $e) {
+            Mage::logException($e);
+        }
+    }
+
+    /**
+     * Ban pages with specified full action name
+     *
+     * @param string $page
+     */
+    public function banPage(string $page)
+    {
+        try {
+            $this->executeOnPool(
+                'page',
+                ['page' => $page]
+            );
+        } catch (Exception $e) {
+            Mage::logException($e);
+        }
+    }
+
+    private function executeOnPool(string $type, array $params) {
+        $headers = [
+            'X-Magento-Method' => 'BAN'
+        ];
+        
+        foreach ($params as $paramName => $paramValue) {
+            $headers[sprintf('X-Ban-%s', ucfirst($paramName))] = $paramValue;
         }
 
-        if ($firstArg === null && $secondArg === null) {
-            $this->getVarnishPool()->$method();
-        } elseif ($secondArg === null) {
-            $this->getVarnishPool()->$method($firstArg);
-        } else {
-            $this->getVarnishPool()->$method($firstArg, $secondArg);
-        }
+        foreach ($this->parseVarnishServers() as $server => $baseUrl) {
+            $client = Mage_HTTP_Client::getInstance();
+            $client->setHeaders($headers);
+            $client->get(sprintf('%s/%s', $baseUrl, $type));
 
-        return $this;
+            if (!$client->getStatus() != 204) {
+                Mage::log(
+                    sprintf('Unsuccessful BAN request to Varnish server (%s %s): %s', $server, $type, $client->getBody()),
+                    Zend_Log::WARN
+                );
+            }
+        }
     }
 }

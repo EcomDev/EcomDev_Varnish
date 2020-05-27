@@ -68,17 +68,16 @@ class EcomDev_Varnish_Block_Js_Wrapper
      * Sets additional cookie for block
      *
      * @param $cookie
-     * @param bool|false $expectedValue
      * @return $this
      */
-    public function setAdditionalCookie($cookie, $expectedValue = false)
+    public function setAdditionalCookie($cookie)
     {
         $additionalCookie = $this->_getData('_additional_cookie');
         if (!$additionalCookie || !is_array($additionalCookie)) {
             $additionalCookie = array();
         }
 
-        $additionalCookie[$cookie] = $expectedValue;
+        $additionalCookie[$cookie] = true;
         $this->setData('_additional_cookie', $additionalCookie);
         return $this;
     }
@@ -116,7 +115,7 @@ class EcomDev_Varnish_Block_Js_Wrapper
             return array();
         }
 
-        return $additionalCookie;
+        return array_keys($additionalCookie);
     }
 
     /**
@@ -130,18 +129,33 @@ class EcomDev_Varnish_Block_Js_Wrapper
     }
 
     /**
+     * Renders child blocks or placeholder template block
+     *
+     * @return string
+     */
+    public function renderCachedBlock()
+    {
+        if ($this->getPlaceholder()) {
+            return $this->getLayout()->createBlock('core/template')
+                ->setTemplate($this->getPlaceholder())
+                ->toHtml();
+        }
+
+        return $this->getChildHtml('', false);
+    }
+
+    /**
      * Block JSON
      *
-     * @return string[]
+     * @return string
      */
     public function getBlockJson()
     {
-        return json_encode(array(
+        return json_encode([
             'container' => $this->getWrapperId(),
             'block' => $this->getBlockName(),
             'cookie' =>  $this->getCookie(),
-            'additionalCookies' => (object)$this->getAdditionalCookies(),
-            'callback' =>  ($this->getCallback() ? $this->getCallback() : false)
-        ));
+            'additionalCookies' => $this->getAdditionalCookies()
+        ]);
     }
 }

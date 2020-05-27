@@ -1,8 +1,6 @@
 <?php
 /** @var $this EcomDev_Varnish_Block_Js_Token */
 ?>
-<script type="text/javascript">
-ecomdevVarnishScope(function () {
-    new EcomDev.Varnish.Token(<?php echo $this->getJson();?>);
-});
+<script type="ecomdev/varnish-element" data-type="form-key">
+<?php echo $this->getJson();?>
 </script>

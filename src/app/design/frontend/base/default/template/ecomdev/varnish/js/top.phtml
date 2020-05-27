@@ -1,22 +1,13 @@
-<script type="text/javascript">
-window.ecomdevVarnishScope = function (action) {
-    if (!window.EcomDev || !EcomDev.Varnish) {
-        setTimeout(
-            function () { window.ecomdevVarnishScope(action); },
-            5
-        );
-    } else {
-        action();
-    }
-};
+<script src="<?php echo $this->getJsUrl('ecomdev/varnish.bundle.js');?>" async></script>
 
-window.currentPage = <?php
-    echo $this->helper('core')->jsonEncode(Mage::helper('ecomdev_varnish')->getCurrentPageInfo()) 
-?>;
+<style>
+.ecomdev-varnish-placeholder { display: inline; padding: 0; margin: 0; }
+</style>
 
-ecomdevVarnishScope(function () {
-    EcomDev.Varnish.AjaxBlock.url = <?php echo $this->helper('core')->jsonEncode(
-        $this->helper('ecomdev_varnish')->getAjaxReloadUrl()
-    );?>;
-});
+<script type="ecomdev/varnish-element" data-type="block-loader">
+<?php echo $this->helper('core')->jsonEncode(['url' => $this->helper('ecomdev_varnish')->getAjaxReloadUrl()]);?>
+</script>
+
+<script type="ecomdev/varnish-element" data-type="page-info">
+<?php echo $this->helper('core')->jsonEncode($this->helper('ecomdev_varnish')->getCurrentPageInfo()) ?>
 </script>

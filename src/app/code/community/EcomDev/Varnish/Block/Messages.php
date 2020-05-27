@@ -55,15 +55,18 @@ class EcomDev_Varnish_Block_Messages
         return sprintf(
             $this->getMessageContainerFormat(),
             json_encode($htmlId),
-            json_encode($this->getUrl('varnish/ajax/message', array(
-                '_secure' => Mage::app()->getStore()->isCurrentlySecure()
-            ))),
-            json_encode($types),
-            json_encode(EcomDev_Varnish_Model_Message::COOKIE_NAME),
-            json_encode(array(
-                'path' => Mage::getSingleton('core/cookie')->getPath(),
-                'domain' => Mage::getSingleton('core/cookie')->getDomain()
-            ))
+            json_encode([
+                'container' => $htmlId,
+                'url' => $this->getUrl('varnish/ajax/message', array(
+                    '_secure' => Mage::app()->getStore()->isCurrentlySecure()
+                )),
+                'types' => $types,
+                'cookieName' => EcomDev_Varnish_Model_Message::COOKIE_NAME,
+                'cookieOptions' => [
+                    'path' => Mage::getSingleton('core/cookie')->getPath(),
+                    'domain' => Mage::getSingleton('core/cookie')->getDomain()
+                ]
+            ])
         );
     }
 
@@ -73,11 +76,7 @@ class EcomDev_Varnish_Block_Messages
             $this->setData(
                 'message_container_format',
                 '<div id=%1$s></div>'
-                . '<script type="text/javascript"> '
-                . 'ecomdevVarnishScope(function () {'
-                . 'new EcomDev.Varnish.Messages(%1$s, %2$s, %3$s, %4$s, %5$s)'
-                . '})'
-                . '</script>'
+                    . '<script type="ecomdev/varnish-element" data-type="messages">%2$s</script>'
             );
         }
         return $this->_getData('message_container_format');

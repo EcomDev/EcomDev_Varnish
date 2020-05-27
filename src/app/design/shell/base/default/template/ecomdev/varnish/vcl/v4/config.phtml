@@ -14,7 +14,6 @@ endif;
 ?>
 import std;
 import header;
-import querystring;
 import directors;
 
 <?php if ($this->getConfig()->getDeviceDetectLibraryPath()): ?>
@@ -70,6 +69,8 @@ sub vcl_init {
 
 # Acls for allowing refresh from a browser
 acl allow_refresh {
+    "127.0.0.1";
+    "localhost";
 <?php foreach($this->getConfig()->getRefreshIps() as $_ip):?>
    <?php echo (is_array($_ip) ? sprintf('"%s"/%s', $_ip[0], $_ip[1]) : sprintf('"%s"', $_ip));?>;
 <?php endforeach; ?>
@@ -97,17 +98,18 @@ sub detect_admin {
  # Custom functions
 sub normalize_url {
     <?php if ($this->getConfig()->getUrlQueryBlacklist()):?>
-    if (req.url ~ "(\?|&)(<?php echo implode('|', $this->getConfig()->getUrlQueryBlacklist());?>)=") {
+    <?php $_blackListMatch = implode('|', $this->getConfig()->getUrlQueryBlacklist());?>
+    if (req.url ~ "(\?|&)(<?php echo $_blackListMatch;?>)=") {
         # Some generic URL manipulation, useful for high hit ratio, e.g. removing all those track parameters
-        set req.url = querystring.regfilter(req.url, "<?php echo implode('|', $this->getConfig()->getUrlQueryBlacklist());?>");
+        set req.url = regsuball(req.url, "&(<?php echo $_blackListMatch;?>)=[^&]*", "");
+        set req.url = regsuball(req.url, "\?(<?php echo $_blackListMatch;?>)=[^&]*", "?");
+        set req.url = regsuball(req.url, "&amp;(<?php echo $_blackListMatch;?>)=[^&]*", "?");
     }
     <?php endif; ?>
 
     # Strip a trailing ? if it exists
     if (req.url ~ "\?$") {
         set req.url = regsub(req.url, "\?$", "");
-    } else {
-        set req.url = std.querysort(req.url);
     }
 }
 
@@ -115,7 +117,7 @@ sub normalize_gzip_ua {
     # Normalize Accept-Encoding header
     # straight from the manual: https://www.varnish-cache.org/docs/3.0/tutorial/vary.html
     if (req.http.Accept-Encoding) {
-        if (req.url ~ "\.(jpg|png|gif|gz|tgz|bz2|tbz|mp3|ogg)$") {
+        if (req.url ~ "\.(jpg|webp|png|gif|gz|tgz|bz2|tbz|mp3|ogg)$") {
             # No point in compressing these
             unset req.http.Accept-Encoding;
         } elsif (req.http.Accept-Encoding ~ "gzip") {
@@ -165,9 +167,21 @@ sub normalize_customer_segment {
     }
 }
 
+sub normalize_customer_ip {
+    unset req.http.X-Final-Varnish-Ip;
+
+    if (client.ip ~ is_local && req.http.<?php echo $this->getConfig()->getIpHeader();?>) {
+        set req.http.X-Final-Varnish-Ip = regsub(req.http.<?php echo $this->getConfig()->getIpHeader();?>, "^([^,]+),?.*$", "\1");
+    }
+
+    if (req.http.X-Final-Varnish-Ip == "") {
+        set req.http.X-Final-Varnish-Ip = client.ip;
+    }
+}
+
 # Various optimizations for esi component of the system
 sub normalize_esi {
-   # Send Surrogate-Capability headers to announce ESI support to backend
+    # Send Surrogate-Capability headers to announce ESI support to backend
     set req.http.Surrogate-Capability = "key=ESI/1.0";
     unset req.http.X-Esi-Include;
 
@@ -195,9 +209,10 @@ sub vcl_recv {
         return (synth(404, "Not Found"));
     }
 
+    call normalize_customer_ip;
     call detect_admin;
 
-    set client.identity = req.http.User-Agent + " " + client.ip;
+    set client.identity = req.http.User-Agent + " " + req.http.X-Final-Varnish;
 
     call normalize_url;
     call extract_cookie;
@@ -205,23 +220,35 @@ sub vcl_recv {
     call normalize_gzip_ua;
     call normalize_esi;
 
-    if (req.http.<?php echo $this->getConfig()->getIpHeader();?>) {
-        set req.http.<?php echo $this->getConfig()->getIpHeader();?> = regsub(req.http.<?php echo $this->getConfig()->getIpHeader();?>, "^(^[^,]+),?.*$", "\1");
-        if (std.ip(req.http.<?php echo $this->getConfig()->getIpHeader();?>, "127.0.0.1") == "127.0.0.1" ) {
-            return (synth(400, "Bad request"));
+    
+    if (req.http.X-Magento-Method == "BAN") {
+        # Same ACL check as above:
+
+        if (std.ip(req.http.req.http.X-Final-Varnish-Ip, client.ip) !~ allow_refresh) {
+            return (synth(403, "Not allowed."));
         }
 
-        if (client.ip !~ is_local) {
-            unset req.http.<?php echo $this->getConfig()->getIpHeader();?>;
+        if (req.url == "/url") {
+            ban("req.url ~ ^" + req.http.X-Ban-Url);
+            return (synth(204, "Ban Processed"));
         }
+
+        if (req.url == "/header") {
+            ban("obj.http." + req.http.X-Ban-Header + " ~ " + req.http.X-Ban-Value);
+            return (synth(204, "Ban Processed"));
+        }
+
+        if (req.url == "/page") {
+            ban("obj.http.<?php echo EcomDev_Varnish_Helper_Data::HEADER_PAGE_TYPE;?> == " + req.http.X-Ban-Page);
+            return (synth(204, "Ban Processed"));
+        }
+
+        return (synth(400, "Bad Request"));
     }
 
 <?php if ($this->getConfig()->getDeviceDetectLibraryPath()): ?>
     call devicedetect;
 <?php endif;?>
-
-    call normalize_gzip_ua;
-    call normalize_esi;
 
     if (req.http.X-Admin-Match) {
         set req.backend_hint = <?php echo $this->getConfig()->getAdminBackend();?>;
@@ -231,25 +258,14 @@ sub vcl_recv {
         set req.backend_hint = <?php echo $_directorName; ?>;
     }
 
-    if (req.http.<?php echo $this->getConfig()->getOffloadHeader();?> && client.ip !~ is_local) {
-        unset req.http.<?php echo $this->getConfig()->getOffloadHeader();?>;
-    }
-
-    if (req.restarts == 0) {
-        if (client.ip !~ is_local) {
-            set req.http.<?php echo $this->getConfig()->getIpHeader();?> = client.ip;
-        }
-    }
-
     set req.http.Host = regsub(req.http.Host, ":[0-9]+", "");
 
-    if (req.http.Cache-Control ~ "no-cache"
-        && client.ip ~ is_local
-        && req.http.<?php echo $this->getConfig()->getIpHeader();?>
-        && std.ip(req.http.<?php echo $this->getConfig()->getIpHeader();?>, "127.0.0.1") ~ allow_refresh ) {
-        set req.hash_always_miss = true;
-    } else if (req.http.Cache-Control ~ "no-cache" && client.ip !~ is_local && client.ip ~ allow_refresh) {
-        set req.hash_always_miss = true;
+    if (req.esi_level > 0) {
+        unset req.http.X-Blackfire-Query;
+    }
+
+    if (req.http.X-Blackfire-Query && std.ip(req.http.X-Final-Varnish-Ip, client.ip) ~ allow_refresh) {
+        return (pass);
     }
 
     # Large static files should be piped, so they are delivered directly to the end-user without
@@ -264,7 +280,7 @@ sub vcl_recv {
     }
 
     # Remove all cookies for static files that can be cached
-    if (req.url ~ "^[^?]*\.(css|eot|svg|gif|ico|js|less|swf|txt|woff|xml|css\.map)(\?.*)?$") {
+    if (req.url ~ "^[^?]*\.(css|eot|svg|gif|ico|js|webp|pdf|jpg|jpeg|png|less|swf|txt|woff|xml|css\.map)(\?.*)?$") {
         unset req.http.Cookie;
     }
 
@@ -290,11 +306,6 @@ sub vcl_recv {
     # Do not cache requests that are not cachable. Cache only GET, HEAD and OPTIONS
     if (req.method != "GET" && req.method != "HEAD" && req.method != "OPTIONS") {
         return (pass);
-    }
-
-    # Remove all cookies for static files that can be cached
-    if (req.url ~ "^[^?]*\.(css|eot|svg|gif|ico|js|jpg|jpeg|png|less|swf|txt|woff|xml|css\.map)(\?.*)?$") {
-        unset req.http.Cookie;
     }
 
     set req.http.X-External-Gzip = 1;
@@ -453,7 +464,7 @@ sub vcl_deliver {
     }
 
     # Remove debug headers if ip address is not whitelisted
-    if (client.ip ~ is_local && std.ip(req.http.<?php echo $this->getConfig()->getIpHeader();?>, "127.0.0.1") !~ allow_refresh) {
+    if (std.ip(req.http.X-Final-Varnish-Ip, client.ip) !~ allow_refresh) {
         unset resp.http.X-Debug;
         unset resp.http.X-Varnish;
     }
@@ -465,6 +476,7 @@ sub vcl_deliver {
         unset resp.http.X-Cache-Objects;
         unset resp.http.X-Cache-Store;
         unset resp.http.X-Cache-Ttl;
+        unset resp.http.X-Magento-Page;
         unset resp.http.<?php echo $this->getConfig()->getOffloadHeader();?>;
         unset resp.http.X-Powered-By;
         unset resp.http.Server;

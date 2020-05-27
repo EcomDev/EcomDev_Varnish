@@ -11,7 +11,7 @@
  *
  * @category   EcomDev
  * @package    EcomDev_Varnish
- * @copyright  Copyright (c) 2014 EcomDev BV (http://www.ecomdev.org)
+ * @copyright  Copyright (c) 2020 EcomDev BV (http://www.ecomdev.org)
  * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  * @author     Ivan Chepurnyi <ivan.chepurnyi@ecomdev.org>
  */
@@ -379,5 +379,13 @@ class EcomDev_Varnish_Model_Observer
         }
 
         return $this;
+    }
+
+    /**
+     * Flushes ESI includes when cache is flushed in the admin
+     */
+    public function adminhtmlCacheFlushAll()
+    {
+        Mage::getSingleton('ecomdev_varnish/connector')->banPage('varnish_esi_handle');
     }
 }

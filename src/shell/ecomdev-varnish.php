@@ -39,11 +39,13 @@ class EcomDev_Varnish_Shell extends Mage_Shell_Abstract
             'version' => 'v'
         ),
         'cache:ban' => array(
-            'header' => 'h',
+            'header' => 'n',
             'value' => 'v'
         ),
+        'cache:ban:page' => array(
+            'page' => 'p',
+        ),
         'cache:ban:objects' => array(),
-        'cache:ban:list' => array()
     );
 
     /**
@@ -66,12 +68,13 @@ Defined <action>s:
     -t --template           Template file for rendering. By default: ecomdev/varnish/vcl/config.phtml
 
   cache:ban             Bans varnish pages by request
-    -h --header             Option name for ban. By default it uses req.url
+    -n --header             Option name for ban. By default it uses page url
     -v --value              Value for ban.
 
-  cache:ban:objects     Bans objects stored in ban queue
+  cache:ban:page        Bans varnish pages by magento full action name
+    -p --page               Full action name of the page
 
-  cache:ban:list        Outputs ban list on all the servers
+  cache:ban:objects     Bans objects stored in ban queue
 
 USAGE;
     }
@@ -198,16 +201,47 @@ USAGE;
     {
         $connector = Mage::getSingleton('ecomdev_varnish/connector');
         $header = $this->getArg('header');
+        $value = $this->getArg('value');
 
         if (empty($header)) {
-            $header = 'req.url';
+            $connector->banUrl($value);
+            fwrite(
+                STDOUT,
+                sprintf('Banned URL %s on all servers %s', $value, PHP_EOL)
+            );
+            return;
         }
 
-        $value = $this->getArg('value');
-        $expression = $header . ' ~ ' . $value;
-        $connector->getVarnishPool()->ban($expression);
+        $connector->banHeader($header, $value);
+        fwrite(
+            STDOUT,
+            sprintf(
+                'Banned all pages with header %s that has value %s on all servers %s',
+                $header,
+                $value,
+                PHP_EOL
+            )
+        );
+    }
 
-        fwrite(STDOUT, sprintf('Executed %s command on all servers %s', $expression, PHP_EOL));
+    /**
+     * Ban cache item
+     *
+     */
+    protected function runCacheBanPage()
+    {
+        $connector = Mage::getSingleton('ecomdev_varnish/connector');
+        $page = $this->getArg('page');
+
+        $connector->banPage($page);
+        fwrite(
+            STDOUT,
+            sprintf(
+                'Banned all pages with full action name %s on all servers %s',
+                $page,
+                PHP_EOL
+            )
+        );
     }
 
     /**
@@ -217,20 +251,7 @@ USAGE;
     protected function runCacheBanObjects()
     {
         Mage::getSingleton('ecomdev_varnish/observer')->backgroundBan();
-        fwrite(STDOUT, sprintf('Tags have been banned %s', PHP_EOL));
-    }
-
-    /**
-     * Bans cache list
-     *
-     */
-    protected function runCacheBanList()
-    {
-        $connector = Mage::getSingleton('ecomdev_varnish/connector');
-        foreach ($connector->getVarnishPool()->getServers() as $server) {
-            fwrite(STDOUT, sprintf('Ban list for server %s %s', (string)$server, PHP_EOL));
-            fwrite(STDOUT, $server->execute('ban.list'));
-        }
+        fwrite(STDOUT, sprintf('Scheduled tags have been banned %s', PHP_EOL));
     }
 }
 

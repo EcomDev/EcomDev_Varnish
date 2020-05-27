@@ -4,17 +4,7 @@
 <?php if ($this->helper('ecomdev_varnish')->isDebug()): ?>
 <!-- ESI START URL: <?php echo $this->getBlockUrl();?> -->
 <?php endif; ?>
-<esi:remove>
-<div id="<?php echo $this->getHtmlId();?>"></div>
-<script type="text/javascript">
-ecomdevVarnishScope(function () {
-    new EcomDev.Varnish.Esi(<?php echo $this->getBlockJson();?>);
-});
-</script>
-</esi:remove>
-<!--esi
 <esi:include src="<?php echo $this->getBlockUrl();?>" />
--->
 <?php if ($this->helper('ecomdev_varnish')->isDebug()): ?>
 <!-- ESI END URL: <?php echo $this->getBlockUrl();?> -->
 <?php endif; ?>

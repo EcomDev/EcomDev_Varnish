@@ -1,0 +1,22 @@
+{
+  "name": "ecomdev_varnish",
+  "version": "1.0.0",
+  "description": "Varnish library for Magento 1.x",
+  "main": "index.js",
+  "repository": "https://github.com/EcomDev/EcomDev_Varnish.git",
+  "author": "Ivan Chepurnyi <ivan.chepurnyi@ecomdev.org>",
+  "license": "MIT",
+  "private": false,
+  "devDependencies": {
+    "@babel/cli": "^7.8.4",
+    "@babel/core": "^7.9.6",
+    "@babel/preset-env": "^7.9.6",
+    "babel-loader": "^8.1.0",
+    "jest": "^26.0.1",
+    "webpack": "^4.43.0",
+    "webpack-cli": "^3.3.11"
+  },
+  "scripts": {
+    "test": "jest"
+  }
+}

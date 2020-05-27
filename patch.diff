@@ -1,0 +1,21 @@
+diff --git a/src/app/code/community/EcomDev/Varnish/Helper/Data.php b/src/app/code/community/EcomDev/Varnish/Helper/Data.php
+index a0ea559..8d60f94 100644
+--- a/src/app/code/community/EcomDev/Varnish/Helper/Data.php
++++ b/src/app/code/community/EcomDev/Varnish/Helper/Data.php
+@@ -32,6 +32,7 @@ class EcomDev_Varnish_Helper_Data extends Mage_Core_Helper_Abstract
+     const HEADER_STORE = 'X-Cache-Store';
+     const HEADER_COOKIE_DOMAIN = 'X-Cookie-Domain';
+     const HEADER_GZIP = 'X-Cache-Gzip';
++    const HEADER_PAGE_TYPE = 'X-Magento-Page';
+ 
+     const HEADER_OBJECTS_ITEMS = 100;
+ 
+@@ -167,6 +168,8 @@ class EcomDev_Varnish_Helper_Data extends Mage_Core_Helper_Abstract
+             $this->setVarnishHeader(self::HEADER_TTL, min($this->_ttlList) . 's');
+         }
+ 
++        $this->setVarnishHeader(self::HEADER_PAGE_TYPE, $this->getCurrentPage());
++
+         // Add object tags header only if it is not added
+         if (!$withoutTags && $this->_objectTags && !$this->hasVarnishHeader(self::HEADER_OBJECTS)) {
+             $objects = array_map(

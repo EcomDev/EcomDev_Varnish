@@ -11,7 +11,7 @@
  *
  * @category   EcomDev
  * @package    EcomDev_Varnish
- * @copyright  Copyright (c) 2014 EcomDev BV (http://www.ecomdev.org)
+ * @copyright  Copyright (c) 2020 EcomDev BV (http://www.ecomdev.org)
  * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  * @author     Ivan Chepurnyi <ivan.chepurnyi@ecomdev.org>
  */
@@ -46,14 +46,6 @@ class EcomDev_Varnish_AjaxController extends Mage_Core_Controller_Front_Action
         $this->_getHelper()->setIsInternal(true);
         Mage::app()->setUseSessionVar(false);
         Mage::app()->setUseSessionInUrl(false);
-
-        // Disallow any non AJAX requests to this url
-        if (!$this->getRequest()->isXmlHttpRequest()) {
-            $this->getResponse()->setHttpResponseCode(403);
-            $this->getResponse()->setBody('Forbidden');
-            $this->setFlag($this->getRequest()->getActionName(), self::FLAG_NO_DISPATCH, true);
-        }
-
         return $this;
     }
 
@@ -94,6 +86,7 @@ class EcomDev_Varnish_AjaxController extends Mage_Core_Controller_Front_Action
             }
         }
 
+        $this->getResponse()->setHeader('Content-Type', 'application/json');
         $this->getResponse()->setBody(Mage::helper('core')->jsonEncode($result));
     }
 
@@ -104,6 +97,10 @@ class EcomDev_Varnish_AjaxController extends Mage_Core_Controller_Front_Action
     public function messageAction()
     {
         $types = $this->getRequest()->getPost('storage');
+
+        if (is_string($types)) {
+            $types = array_filter(explode(',', $types));
+        }
 
         if (!$types) {
             $this->getResponse()->setBody('');

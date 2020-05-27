@@ -2,6 +2,7 @@ src/app/code/community/EcomDev/Varnish app/code/community/EcomDev/Varnish
 src/app/design/frontend/base/default/layout/ecomdev/varnish.xml app/design/frontend/base/default/layout/ecomdev/varnish.xml
 src/app/design/frontend/base/default/template/ecomdev/varnish app/design/frontend/base/default/template/ecomdev/varnish
 src/js/ecomdev/varnish.js js/ecomdev/varnish.js
+src/js/ecomdev/varnish.bundle.js js/ecomdev/varnish.bundle.js
 src/app/etc/modules/EcomDev_Varnish.xml app/etc/modules/EcomDev_Varnish.xml
 src/shell/*.php  shell/
 src/app/design/shell/base/default/template/ecomdev/varnish app/design/shell/base/default/template/ecomdev/varnish

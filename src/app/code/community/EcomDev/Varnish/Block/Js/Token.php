@@ -160,13 +160,17 @@ class EcomDev_Varnish_Block_Js_Token
      */
     public function getJson()
     {
-        $json = array(
+        $json = [
             'urlKeyParam' => $this->getUrlKeyParam(),
             'inputFieldName' => $this->getTokenInputName(),
             'observedCssRules' => $this->getObservedCssRules(),
-            'requestUrl' => $this->getTokenUrl(),
-            'cookieName' => $this->getCookieName()
-        );
+            'cookieName' => $this->getCookieName(),
+            'locationFunction' => 'setLocation',
+            'cookieOptions' => [
+                'path' => Mage::getSingleton('core/cookie')->getPath(),
+                'domain' => Mage::getSingleton('core/cookie')->getDomain()
+            ]
+        ];
 
         return json_encode($json);
     }

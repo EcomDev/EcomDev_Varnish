@@ -22,6 +22,7 @@ if (!window.EcomDev) {
 /**
  * Storage wrapper for session, local storage
  * @type {*}
+ * @deprecated since 3.0.0
  */
 EcomDev.Storage = Class.create({
     initialize: function (namespace) {
@@ -141,7 +142,9 @@ EcomDev.Storage.instance = function (namespace) {
     return this.instances.get(namespace);
 };
 
-
+/**
+ * @deprecated since 3.0.0
+ */
 EcomDev.Varnish = {};
 
 EcomDev.Varnish.AjaxBlock = Class.create({
@@ -328,6 +331,9 @@ Object.extend(EcomDev.Varnish.AjaxBlock, {
     }
 });
 
+/**
+ * @deprecated since 3.0.0
+ */
 EcomDev.Varnish.Esi = Class.create({
     /**
      * @type {EcomDev.Storage}
@@ -422,6 +428,8 @@ EcomDev.Varnish.Url = Class.create({
  * Token class for form key validation
  *
  * It is used to validate form key validator
+ *
+ * @deprecated since 3.0.0 in favour of async varnish.bundle.js
  */
 EcomDev.Varnish.Token = Class.create({
     initialize: function (config) {
@@ -493,7 +501,7 @@ EcomDev.Varnish.Token = Class.create({
     replaceKeyInUrl: function (url) {
         if (url.match('/' + this.urlKeyParam) + '/') {
             url = url.replace(
-                new RegExp('/' + RegExp.escape(this.urlKeyParam) + '/[^/]/', 'g'),
+                new RegExp('/' + RegExp.escape(this.urlKeyParam) + '/[^/]+', 'g'),
                 '/' + this.urlKeyParam + '/' + this.getTokenValue() + '/'
             );
         }

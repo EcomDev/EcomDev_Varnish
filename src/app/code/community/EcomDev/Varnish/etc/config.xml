@@ -12,7 +12,7 @@
      *
      * @category   EcomDev
      * @package    EcomDev_Varnish
-     * @copyright  Copyright (c) 2014 EcomDev BV (http://www.ecomdev.org)
+     * @copyright  Copyright (c) 2020 EcomDev BV (http://www.ecomdev.org)
      * @license    http://www.ecomdev.org/license-agreement  End User License Agreement for EcomDev Premium Extensions.
      * @author     Ivan Chepurnyi <ivan.chepurnyi@ecomdev.org>
      */
@@ -32,6 +32,13 @@
                 <class>EcomDev_Varnish_Model_Resource</class>
             </ecomdev_varnish_resource>
         </models>
+        <resources>
+            <ecomdev_varnish_setup>
+                <setup>
+                    <module>EcomDev_Varnish</module>
+                </setup>
+            </ecomdev_varnish_setup>
+        </resources>
         <blocks>
             <ecomdev_varnish>
                 <class>EcomDev_Varnish_Block</class>
@@ -75,6 +82,14 @@
                     </ecomdev_varnish>
                 </observers>
             </model_save_commit_after>
+            <adminhtml_cache_flush_all>
+                <observers>
+                    <ecomdev_varnish>
+                        <class>ecomdev_varnish/observer</class>
+                        <method>adminhtmlCacheFlushAll</method>
+                    </ecomdev_varnish>
+                </observers>
+            </adminhtml_cache_flush_all>
         </events>
     </global>
     <varnish>
@@ -224,12 +239,11 @@
             <settings>
                 <active>1</active>
                 <debug>0</debug>
-                <gzip>1</gzip>
+                <gzip>0</gzip>
                 <store_segment>0</store_segment>
                 <customer_group_segment>1</customer_group_segment>
                 <currency_segment>0</currency_segment>
-                <server>127.0.0.1:6082</server>
-                <secret_newline>1</secret_newline>
+                <http_ban>127.0.0.1:6081</http_ban>
             </settings>
             <pages>
                 <catalog_category_view_time>360</catalog_category_view_time>
