@@ -153,7 +153,7 @@ class EcomDev_Varnish_Helper_Data extends Mage_Core_Helper_Abstract
      */
     public function isActive()
     {
-        return Mage::getStoreConfig(self::XML_PATH_ACTIVE);
+        return Mage::isInstalled() && Mage::getStoreConfig(self::XML_PATH_ACTIVE);
     }
     
     /**
