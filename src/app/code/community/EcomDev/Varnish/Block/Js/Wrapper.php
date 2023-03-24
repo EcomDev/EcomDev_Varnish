@@ -22,7 +22,7 @@ class EcomDev_Varnish_Block_Js_Wrapper
      */
     public function getWrapperId()
     {
-        return $this->getNameInLayout();
+        return $this->hasData('wrapper_id') ? $this->_getData('wrapper_id') : $this->getNameInLayout();
     }
 
     /**
